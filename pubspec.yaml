@@ -1,0 +1,54 @@
+name: elos_rubrik
+description: "rubricas-difusas"
+# La siguiente línea evita que el paquete se publique accidentalmente en
+# pub.dev usando `flutter pub publish`. Esto se prefiere para paquetes privados.
+publish_to: 'none' # Elimina esta línea si deseas publicar en pub.dev
+
+# La siguiente sección define la versión y el número de compilación para tu aplicación.
+# Un número de versión tiene tres números separados por puntos, como 1.2.43
+# seguido de un número de compilación opcional separado por un +.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+# Las dependencias especifican otros paquetes que tu paquete necesita para funcionar.
+dependencies:
+  flutter:
+    sdk: flutter
+  # Dependencias de Firebase actualizadas a versiones compatibles y estables
+  # dentro de la familia 4.x.x (para auth/firestore) y 2.x.x (para core).
+  firebase_core: ^2.25.0
+  firebase_auth: ^4.20.0  # Actualizado para mejor estabilidad y compatibilidad con sus dependencias web.
+  cloud_firestore: ^4.17.0 # Actualizado para alinearse con la última versión 4.x.x/2.x.x.
+  crypto: ^3.0.3
+  # La siguiente línea añade la fuente de Cupertino Icons a tu aplicación.
+  cupertino_icons: ^1.0.8
+  flutter_localizations:
+    sdk: flutter
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # El paquete "flutter_lints" a continuación contiene un conjunto de lints recomendados
+  # para fomentar buenas prácticas de codificación.
+  flutter_lints: ^5.0.0
+
+# Para obtener información sobre la parte genérica de Dart de este archivo, consulta:
+# https://dart.dev/tools/pub/pubspec
+
+# La siguiente sección es específica para paquetes de Flutter.
+flutter:
+
+  # Esta línea asegura que la fuente de Material Icons esté
+  # incluida en tu aplicación.
+  uses-material-design: true
+
+
+  # Para añadir assets a tu aplicación, añade una sección de assets, como esta:
+  assets:
+    - assets/images/
+
+# Sección de anulación de dependencias eliminada.
