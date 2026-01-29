@@ -1,27 +1,6 @@
 {
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "elos-rubrik",
-          "appId": "1:1010096059021:android:d70d2c07075ef6e40a28c4",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "elos-rubrik",
-          "configurations": {
-            "android": "1:1010096059021:android:d70d2c07075ef6e40a28c4",
-            "web": "1:1010096059021:web:151dd3ac6121ff4e0a28c4",
-            "windows": "1:1010096059021:web:1bf971f0a8fd21ca0a28c4"
-          }
-        }
-      }
-    }
-  },
   "hosting": {
-    "public": "y",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
