@@ -255,7 +255,7 @@ class WelcomeBanner extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  'Bienvenido, Prof. Dany',
+                  'Bienvenido, Prof. Dany San',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
