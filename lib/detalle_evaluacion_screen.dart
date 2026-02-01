@@ -1,5 +1,6 @@
 // detalle_evaluacion_screen.dart
 import 'package:flutter/material.dart';
+import 'auth_helper.dart';
 
 class DetalleEvaluacionScreen extends StatelessWidget {
   final Map<String, dynamic> evaluacionData;
@@ -160,6 +161,9 @@ class DetalleEvaluacionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(_appBarTitle),
+        actions: [
+          AuthHelper.logoutButton(context), // <--- Añadir aquí
+        ],
         // El estilo del AppBar ya viene del tema global en main.dart
       ),
       body: _buildResultados(context),

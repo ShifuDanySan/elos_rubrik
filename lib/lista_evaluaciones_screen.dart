@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // NECESARIO
 import 'package:firebase_auth/firebase_auth.dart'; // NECESARIO
 import 'detalle_evaluacion_screen.dart';
+import 'auth_helper.dart';
 
 // ===============================================
 // CONSTANTES DE ENTORNO Y ESTILO
@@ -69,14 +70,16 @@ class ListaEvaluacionesScreen extends StatelessWidget {
   // 4. Construcción de la Interfaz con StreamBuilder
   // ----------------------------------------------------
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial de Evaluaciones'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: const Text('Mis Evaluaciones'),
+        // 2. AGREGAR EL BOTÓN AQUÍ
+        actions: [
+          AuthHelper.logoutButton(context),
+        ],
       ),
-      // Uso de StreamBuilder para escuchar cambios en tiempo real
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _fetchEvaluacionesStream(),
         builder: (context, snapshot) {

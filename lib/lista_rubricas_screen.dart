@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'evaluar_rubrica_screen.dart';
 import 'crear_rubrica_screen.dart';
+import 'auth_helper.dart';
 
 // ===============================================
 // CONSTANTES DE ENTORNO (Sincronizadas)
@@ -58,16 +59,11 @@ class ListaRubricasScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Mis Rúbricas', style: TextStyle(color: Colors.white)),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-      ),
-
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _navegarACrearRubrica(context),
-        icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-        label: const Text('Crear Nueva Rúbrica', style: TextStyle(color: Colors.white)),
-        backgroundColor: accentColor,
+        title: const Text('Mis Rúbricas'),
+        // El estilo viene del main.dart, pero añadimos las acciones:
+        actions: [
+          AuthHelper.logoutButton(context), // <--- 2. AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
 
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

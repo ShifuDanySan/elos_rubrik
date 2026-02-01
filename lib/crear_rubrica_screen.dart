@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // 💡 IMPORTACIÓN NECESARI
 import 'gestion_criterios_screen.dart'; // Importa la pantalla de gestión de criterios
 import 'add_criterio_screen.dart'; // Importa la pantalla para añadir criterios
 import 'dart:math';
+import 'auth_helper.dart';
 
 // ===============================================
 // CONSTANTES Y FUNCIONES AUXILIARES (Sincronizadas)
@@ -115,13 +116,17 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Comprobación de si hay criterios para habilitar el botón de guardado
     final bool criteriosValidos = true;
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Crear Nueva Rúbrica'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        title: const Text('Nueva Rúbrica'),
+        // El estilo ya está definido en el tema global (main.dart)
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: Center(
         child: Container(

@@ -4,6 +4,8 @@ import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
+import 'auth_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ===============================================
 // CONSTANTES DE ESTILO DEL HOME SCREEN (PALETA VIOLETA)
@@ -318,15 +320,12 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rúbrica Digital - Inicio'),
-        // AppBar con color oscuro de la nueva paleta
-        backgroundColor: Colors.deepPurple.shade900,
-        foregroundColor: Colors.white,
-        elevation: 10,
+        title: const Text('Elos-Rubrik'),
+        backgroundColor: _primaryColor,
+        actions: [
+          AuthHelper.logoutButton(context),
+        ],
       ),
-      // Aplicar un color base suave con algo de transparencia para que
-      // las formas del Stack inferior puedan verse a través del cuerpo.
-      backgroundColor: _homeBackgroundColor.withOpacity(0.7),
       body: Stack(
         children: [
           // 1. Fondo Animado Flotante (Capa inferior - Ahora más visible)

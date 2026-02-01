@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // <<< Añadir Import de FirebaseAuth
+import 'auth_helper.dart';
 
 class EvaluarRubricaScreen extends StatefulWidget {
   final Map<String, dynamic> rubrica;
@@ -185,8 +186,9 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Evaluar: ${widget.rubrica['nombre']}'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- Añadir aquí
+        ],
       ),
       body: Center(
         child: Container(
