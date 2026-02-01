@@ -289,6 +289,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() { _isLoading = true; });
+
+    // CORRECCIÓN: Forzar el cierre de sesión antes de intentar loguear.
+    // Esto garantiza que la app valide la contraseña contra el servidor y no use tokens viejos.
+    await FirebaseAuth.instance.signOut();
+
     final dniLimpio = _dniController.text.replaceAll('.', '');
     final password = _passwordController.text;
 
@@ -437,7 +442,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         children: <Widget>[
           Icon(_esLogin ? Icons.login_rounded : Icons.person_add_alt_1_rounded, size: 80, color: _primaryColor),
           const SizedBox(height: 10),
-          // SECCIÓN DE TÍTULO Y ESCOGAN ACTUALIZADO
           if (_esLogin) ...[
             const Text(
               'INICIA SESIÓN EN ELOS-RUBRIK',
