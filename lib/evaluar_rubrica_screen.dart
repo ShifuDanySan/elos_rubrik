@@ -1,9 +1,13 @@
-// evaluar_rubrica_screen.dart (Versión Final Corregida)
+// evaluar_rubrica_screen.dart (Versión con Captura de Columnas Dinámicas)
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // <<< Añadir Import de FirebaseAuth
+import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_helper.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:excel/excel.dart' as excel_lib;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class EvaluarRubricaScreen extends StatefulWidget {
   final Map<String, dynamic> rubrica;
@@ -15,12 +19,12 @@ class EvaluarRubricaScreen extends StatefulWidget {
 }
 
 class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
-  // ... (Las variables de estado se mantienen) ...
-  final List<String> _estudiantes = ['Juan Pérez', 'Ana Gómez', 'Grupo A', 'Grupo B'];
+  List<String> _estudiantes = [''];
   String? _estudianteSeleccionado;
   final Map<String, double> _evaluacionValores = {};
   double _notaCalculada = 0.0;
   bool _isSaving = false;
+  bool _isLoadingExcel = false;
 
   @override
   void initState() {
@@ -28,6 +32,109 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
     _estudianteSeleccionado = _estudiantes.first;
     _inicializarEvaluacion();
     _calcularNotaFinal();
+  }
+
+  // ==========================================================
+  // LÓGICA DE CARGA DE EXCEL CON CAPTURA DE COLUMNAS DINÁMICAS
+  // ==========================================================
+  Future<void> _cargarExcelAlumnos() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result != null) {
+        setState(() => _isLoadingExcel = true);
+
+        var bytes;
+        if (kIsWeb) {
+          bytes = result.files.first.bytes;
+        } else {
+          bytes = File(result.files.first.path!).readAsBytesSync();
+        }
+
+        var excel = excel_lib.Excel.decodeBytes(bytes!);
+        List<String> listaTemporal = [];
+
+        for (var table in excel.tables.keys) {
+          var rows = excel.tables[table]!.rows;
+          if (rows.isEmpty) continue;
+
+          // 1. Identificar índices clave y mapear el resto
+          int idxNombre = -1, idxApellido = -1, idxDni = -1;
+          Map<int, String> otrasColumnas = {}; // Índice -> Nombre de columna
+
+          var firstRow = rows[0];
+
+          for (int i = 0; i < firstRow.length; i++) {
+            String header = firstRow[i]?.value.toString().trim() ?? "";
+            String headerLower = header.toLowerCase();
+
+            if (headerLower.contains("nombre")) {
+              idxNombre = i;
+            } else if (headerLower.contains("apellido")) {
+              idxApellido = i;
+            } else if (headerLower.contains("dni") || headerLower.contains("documento")) {
+              idxDni = i;
+            } else if (header.isNotEmpty) {
+              // Guardamos cualquier otra columna que tenga nombre
+              otrasColumnas[i] = header.toUpperCase();
+            }
+          }
+
+          // Fallback si no hay encabezados claros
+          if (idxNombre == -1) idxNombre = 0;
+          if (idxApellido == -1) idxApellido = 1;
+          if (idxDni == -1) idxDni = 2;
+
+          // 2. Procesar datos
+          for (int i = 1; i < rows.length; i++) {
+            var row = rows[i];
+            if (row.isEmpty) continue;
+
+            String nombre = idxNombre < row.length ? (row[idxNombre]?.value.toString().trim() ?? "") : "";
+            String apellido = idxApellido < row.length ? (row[idxApellido]?.value.toString().trim() ?? "") : "";
+            String dni = idxDni < row.length ? (row[idxDni]?.value.toString().trim() ?? "") : "";
+
+            if (nombre.isNotEmpty) {
+              // Construir base: NOMBRE APELLIDO (DNI)
+              String infoEstudiante = "${nombre.toUpperCase()} ${apellido.toUpperCase()} ($dni)";
+
+              // Añadir dinámicamente el resto de las columnas encontradas
+              otrasColumnas.forEach((index, nombreColumna) {
+                if (index < row.length && row[index] != null) {
+                  String valorExtra = row[index]!.value.toString().trim();
+                  if (valorExtra.isNotEmpty && valorExtra != "null") {
+                    infoEstudiante += " | $nombreColumna: $valorExtra";
+                  }
+                }
+              });
+
+              listaTemporal.add(infoEstudiante);
+            }
+          }
+          if (listaTemporal.isNotEmpty) break;
+        }
+
+        setState(() {
+          // Ordenamos alfabéticamente para que sea profesional
+          listaTemporal.sort();
+          _estudiantes = listaTemporal;
+          _estudianteSeleccionado = _estudiantes.isNotEmpty ? _estudiantes.first : null;
+          _isLoadingExcel = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('DATOS CARGADOS CON COLUMNAS DINÁMICAS')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoadingExcel = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _inicializarEvaluacion() {
@@ -76,7 +183,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
     for (var criterio in criterios) {
       final double pesoCriterio = criterio['peso'] as double? ?? 0.0;
       final List descriptores = criterio['descriptores'] as List? ?? [];
-
       double valorCriterio = 0.0;
 
       for (var descriptor in descriptores) {
@@ -102,18 +208,14 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
     });
   }
 
-  // ==========================================================
-  // LÓGICA DE GUARDADO EN FIRESTORE (FINAL)
-  // ==========================================================
   void _guardarEvaluacion() async {
-    if (_estudianteSeleccionado == null || _isSaving) {
+    if (_estudianteSeleccionado == null || _isSaving || _estudianteSeleccionado!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, seleccione un estudiante/grupo.')),
+        const SnackBar(content: Text('Por favor, cargue y seleccione un estudiante.')),
       );
       return;
     }
 
-    // Obtener el ID del usuario actual para el registro
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,62 +224,44 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
       return;
     }
 
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
-    // 1. Crear el mapa de valores analíticos con precisión de 2 decimales, manteniendo el tipo double
     final Map<String, double> valoresAnaliticosPonderados = _evaluacionValores.map(
           (key, value) => MapEntry(key, double.parse(value.toStringAsFixed(2))),
     );
 
-    // 2. Crear el objeto de la evaluación
     final Map<String, dynamic> evaluacionData = {
       'rubricaId': widget.rubrica['docId'],
       'nombreRubrica': widget.rubrica['nombre'],
       'estudiante': _estudianteSeleccionado,
-      'evaluadorId': userId, // <<< ID del usuario para saber quién evaluó
+      'evaluadorId': userId,
       'notaFinal': double.parse(_notaCalculada.toStringAsFixed(2)),
       'fechaEvaluacion': FieldValue.serverTimestamp(),
-      'valoresAnaliticos': valoresAnaliticosPonderados, // Usamos el mapa de doubles
+      'valoresAnaliticos': valoresAnaliticosPonderados,
     };
 
     try {
-      // 3. Guardar en la colección 'evaluaciones'
-      // Usamos una colección de evaluaciones para el usuario actual (similar a cómo se carga en lista_rubricas_screen.dart)
-      // Ruta: artifacts/{appId}/users/{userId}/evaluaciones
-      const String appId = 'rubrica_evaluator'; // Usamos la misma constante de la otra pantalla
+      const String appId = 'rubrica_evaluator';
       final String collectionPath = 'artifacts/$appId/users/$userId/evaluaciones';
-
       await FirebaseFirestore.instance.collection(collectionPath).add(evaluacionData);
 
-      // 4. Mostrar éxito y salir
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Evaluación guardada con éxito para $_estudianteSeleccionado. NOTA: ${_notaCalculada.toStringAsFixed(2)}'),
+          content: Text('Guardado: ${_notaCalculada.toStringAsFixed(2)}'),
           backgroundColor: Colors.green,
         ),
       );
 
-      // Volver a la pantalla anterior después de guardar
       Navigator.of(context).pop();
 
     } catch (e) {
-      // 5. Manejar error
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar la evaluación: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     } finally {
-      setState(() {
-        _isSaving = false;
-      });
+      setState(() => _isSaving = false);
     }
   }
-
-  // ... (El resto del método build se mantiene igual) ...
 
   @override
   Widget build(BuildContext context) {
@@ -186,9 +270,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Evaluar: ${widget.rubrica['nombre']}'),
-        actions: [
-          AuthHelper.logoutButton(context), // <--- Añadir aquí
-        ],
+        actions: [AuthHelper.logoutButton(context)],
       ),
       body: Center(
         child: Container(
@@ -197,9 +279,23 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Selector de Estudiante
+              ElevatedButton.icon(
+                onPressed: _isLoadingExcel ? null : _cargarExcelAlumnos,
+                icon: _isLoadingExcel
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.upload_file),
+                label: const Text('CARGAR ALUMNOS DESDE EXCEL'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+
               DropdownButtonFormField<String>(
                 value: _estudianteSeleccionado,
+                isExpanded: true, // Importante para textos largos de columnas extras
                 decoration: const InputDecoration(
                   labelText: 'Evaluar a',
                   border: OutlineInputBorder(),
@@ -208,14 +304,13 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
                 items: _estudiantes.map((String est) {
                   return DropdownMenuItem<String>(
                     value: est,
-                    child: Text(est),
+                    child: Text(est, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 onChanged: _onEstudianteChanged,
               ),
               const SizedBox(height: 16),
 
-              // 2. Nota Final Calculada (Actualizada en tiempo real)
               Text(
                 'NOTA FINAL CALCULADA: ${_notaCalculada.toStringAsFixed(2)}',
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal),
@@ -223,7 +318,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 3. Iteración sobre Criterios y Asignación de Puntuación
               Expanded(
                 child: ListView.builder(
                   itemCount: criterios.length,
@@ -251,84 +345,46 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
                           }).toList();
                           final double valorDescriptorCalculado = _calcularValorDescriptorCompensatorio(gradosAsignados, operador);
 
-
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Header Descriptor
-                                Text(
-                                    'Descriptor:',
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontStyle: FontStyle.italic)
-                                ),
-                                Text('Peso Descriptor: ${(descriptor['pesoDescriptor'] as double? ?? 0.0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                                Text(
-                                    'Contexto: ${descriptor['contexto']}',
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontStyle: FontStyle.italic, color: Colors.black87)
-                                ),
+                                Text('Descriptor:', style: const TextStyle(fontWeight: FontWeight.w600, fontStyle: FontStyle.italic)),
+                                Text('Peso: ${(descriptor['pesoDescriptor'] as double? ?? 0.0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                                Text('Contexto: ${descriptor['contexto']}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                                 const Divider(height: 10),
 
-                                // Iteración sobre Criterios Analíticos
                                 ...analiticos.asMap().entries.map((entry) {
                                   final int analiticoIndex = entry.key;
                                   final analitico = entry.value;
-
                                   final String analiticoDesc = analitico['descripcion'];
                                   final double objetivo = analitico['gradoPertenencia'] as double? ?? 0.0;
-                                  final String displayTitle = 'Criterio Analítico ${analiticoIndex + 1}: $analiticoDesc';
                                   final String analiticoKey = '${criterio['nombre']}_${descriptor['contexto']}_$analiticoDesc';
                                   final double currentValue = _evaluacionValores[analiticoKey] ?? 0.0;
-
 
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(displayTitle, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                      Text('Grado de Pertenencia (Objetivo): ${objetivo.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.indigo)),
-
-                                      // SLIDER (Entrada de datos del docente)
+                                      Text('Analítico ${analiticoIndex + 1}: $analiticoDesc', style: const TextStyle(fontWeight: FontWeight.w500)),
+                                      Text('Objetivo: ${objetivo.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.indigo)),
                                       Row(
                                         children: [
                                           Expanded(
                                             child: Slider(
                                               value: currentValue,
-                                              min: 0.0,
-                                              max: 1.0,
-                                              divisions: 10,
+                                              min: 0.0, max: 1.0, divisions: 10,
                                               label: currentValue.toStringAsFixed(1),
-                                              onChanged: (double value) {
-                                                _onGradoPertenenciaChanged(analiticoKey, double.parse(value.toStringAsFixed(1)));
-                                              },
+                                              onChanged: (double value) => _onGradoPertenenciaChanged(analiticoKey, double.parse(value.toStringAsFixed(1))),
                                             ),
                                           ),
-                                          SizedBox(
-                                            width: 50,
-                                            child: Text(
-                                              currentValue.toStringAsFixed(1),
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                            ),
-                                          ),
+                                          Text(currentValue.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
                                         ],
                                       ),
-
-                                      if (analiticoIndex == 0 && operador != null && analiticos.length > 1)
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: Text(
-                                            'Operador: ${operador['nombre']}',
-                                            style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 10),
                                     ],
                                   );
                                 }).toList(),
-
-                                Text(
-                                    'Valor del Descriptor (suma ponderada) [V: ${valorDescriptorCalculado.toStringAsFixed(2)}]',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)
-                                ),
+                                Text('Valor Descriptor: ${valorDescriptorCalculado.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                                 const SizedBox(height: 10),
                               ],
                             ),
@@ -341,7 +397,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
               ),
 
               const SizedBox(height: 16),
-              // Botón de Guardar Evaluación
               ElevatedButton.icon(
                 onPressed: _isSaving ? null : _guardarEvaluacion,
                 icon: _isSaving

@@ -24,6 +24,8 @@ dependencies:
   crypto: ^3.0.3
   # La siguiente línea añade la fuente de Cupertino Icons a tu aplicación.
   cupertino_icons: ^1.0.8
+  file_picker: ^8.0.0 # O la versión más reciente
+  excel: ^4.0.0
   flutter_localizations:
     sdk: flutter
 
