@@ -1,3 +1,4 @@
+// login_register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -185,15 +186,12 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // NODOS DE ENFOQUE PARA EL CURSOR AUTOMÁTICO
   final FocusNode _firstFieldFocusNode = FocusNode();
-
   final int _tipoUsuarioPorDefecto = 2;
 
   @override
   void initState() {
     super.initState();
-    // Inicia el foco en el primer campo después de que se rinda el primer frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFieldFocusNode.requestFocus();
     });
@@ -207,8 +205,66 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     _apellidoController.dispose();
     _emailController.dispose();
     _confirmPasswordController.dispose();
-    _firstFieldFocusNode.dispose(); // Liberar el FocusNode
+    _firstFieldFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _mostrarRecuperarPassword() async {
+    final TextEditingController _resetEmailController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('Recuperar Acceso', style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Ingresa el correo electrónico asociado a tu cuenta para restablecer tu contraseña.'),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _resetEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Correo Electrónico',
+                prefixIcon: const Icon(Icons.email_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+            onPressed: () async {
+              final email = _resetEmailController.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Por favor, ingresa un correo válido')),
+                );
+                return;
+              }
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Mail enviado. Revisa tu correo.'), backgroundColor: Colors.green),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Error al enviar el correo.'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('ENVIAR', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _cambiarModo() {
@@ -224,7 +280,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     _emailController.clear();
     _confirmPasswordController.clear();
 
-    // Al cambiar de modo, pedimos el foco nuevamente para el primer campo
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFieldFocusNode.requestFocus();
     });
@@ -299,7 +354,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   Widget _buildDesktopLayout() {
     return Container(
       width: 500,
-      constraints: const BoxConstraints(maxHeight: 800),
+      constraints: const BoxConstraints(maxHeight: 850),
       padding: const EdgeInsets.all(40.0),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -339,13 +394,13 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     String? Function(String?)? validator,
     int? maxLength,
     bool hideCounter = false,
-    FocusNode? focusNode, // <--- NUEVO PARÁMETRO
+    FocusNode? focusNode,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: TextFormField(
         controller: controller,
-        focusNode: focusNode, // <--- ASIGNAR EL NODO
+        focusNode: focusNode,
         obscureText: isPassword && !_mostrarPassword,
         textInputAction: textInputAction,
         onFieldSubmitted: onSubmitted,
@@ -382,8 +437,25 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         children: <Widget>[
           Icon(_esLogin ? Icons.login_rounded : Icons.person_add_alt_1_rounded, size: 80, color: _primaryColor),
           const SizedBox(height: 10),
-          Text(_esLogin ? 'INICIA SESIÓN EN ELOS-RUBRIK' : 'CREA TU CUENTA',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _primaryColor), textAlign: TextAlign.center),
+          // SECCIÓN DE TÍTULO Y ESCOGAN ACTUALIZADO
+          if (_esLogin) ...[
+            const Text(
+              'INICIA SESIÓN EN ELOS-RUBRIK',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _primaryColor),
+              textAlign: TextAlign.center,
+            ),
+            const Text(
+              'TU GESTOR ESPECIALIZADO EN RÚBRICAS BASADAS EN LÓGICA DIFUSA',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _accentColor, letterSpacing: 0.8),
+              textAlign: TextAlign.center,
+            ),
+          ] else
+            const Text(
+              'CREA TU CUENTA',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _primaryColor),
+              textAlign: TextAlign.center,
+            ),
+
           const SizedBox(height: 30),
 
           if (!_esLogin) ...[
@@ -391,7 +463,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                 controller: _nombreController,
                 label: 'Nombre',
                 icon: Icons.person_outline,
-                focusNode: _firstFieldFocusNode, // <--- FOCO INICIAL EN REGISTRO
+                focusNode: _firstFieldFocusNode,
                 textInputAction: TextInputAction.next,
                 validator: (v) => (v == null || v.isEmpty) ? 'Obligatorio' : null),
             _buildStyledTextField(
@@ -413,7 +485,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
             controller: _dniController,
             label: 'DNI (ej: 11.222.333)',
             icon: Icons.badge_outlined,
-            focusNode: _esLogin ? _firstFieldFocusNode : null, // <--- FOCO INICIAL EN LOGIN
+            focusNode: _esLogin ? _firstFieldFocusNode : null,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.next,
             maxLength: 10,
@@ -437,6 +509,18 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
             },
             validator: (v) => (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
           ),
+
+          if (_esLogin)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
+                child: TextButton(
+                  onPressed: _mostrarRecuperarPassword,
+                  child: const Text('¿Olvidaste tu contraseña?', style: TextStyle(color: _primaryColor, fontSize: 13)),
+                ),
+              ),
+            ),
 
           if (!_esLogin) ...[
             _buildStyledTextField(
