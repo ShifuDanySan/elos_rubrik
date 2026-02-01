@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_analitico_screen.dart';
 import 'add_operador_descriptor_screen.dart';
+import 'auth_helper.dart'; //
 
 class AddDescriptorScreen extends StatefulWidget {
   final String nombreCriterio;
@@ -213,6 +214,9 @@ class _AddDescriptorScreenState extends State<AddDescriptorScreen> {
       appBar: AppBar(
         title: Text('Descriptor para: ${widget.nombreCriterio}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: Center(
         child: Container(

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_criterio_screen.dart';
 import 'dart:math';
+import 'auth_helper.dart';
 
 // ===============================================
 // CONSTANTES Y FUNCIONES AUXILIARES (Sincronizadas)
@@ -211,6 +212,9 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
         title: const Text('Gestión de Criterios'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- Añadir aquí
+        ],
       ),
       body: Center(
         child: Container(

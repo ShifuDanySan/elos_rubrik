@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'add_descriptor_screen.dart'; // Asegúrate de que este archivo ya está corregido
+import 'add_descriptor_screen.dart';
+import 'auth_helper.dart'; // <--- AGREGAR ESTO// Asegúrate de que este archivo ya está corregido
 
 // Define un alias para el tipo de función que calcula el peso total
 typedef PesoCalculator = double Function(List<Map<String, dynamic>>);
@@ -173,6 +174,9 @@ class _AddCriterioScreenState extends State<AddCriterioScreen> {
       appBar: AppBar(
         title: const Text('Añadir Nuevo Criterio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: Center(
         child: Container(

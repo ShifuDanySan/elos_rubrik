@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'auth_helper.dart';
 
 class AddAnaliticoScreen extends StatefulWidget {
   final int analiticoIndex;
@@ -65,6 +66,9 @@ class _AddAnaliticoScreenState extends State<AddAnaliticoScreen> {
       appBar: AppBar(
         title: Text('Añadir Analítico ${widget.analiticoIndex}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor, // AppBar Teal Oscuro
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: Center(
         child: Container(

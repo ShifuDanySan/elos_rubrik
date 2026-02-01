@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'auth_helper.dart';
 
 class AddOperadorDescriptorScreen extends StatefulWidget {
   const AddOperadorDescriptorScreen({super.key});
@@ -60,6 +61,9 @@ class _AddOperadorDescriptorScreenState extends State<AddOperadorDescriptorScree
       appBar: AppBar(
         title: const Text('Añadir Operador Lógico', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: Center(
         child: Container(

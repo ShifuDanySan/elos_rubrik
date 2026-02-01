@@ -1,3 +1,4 @@
+//auth_helper.dart (boton de cerrar sesion)
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -31,7 +32,7 @@ class AuthHelper {
     }
   }
 
-  static Widget logoutButton(BuildContext context, {Color color = Colors.white}) {
+  static Widget logoutButton(BuildContext context, {Color color = Colors.red}) {
     return IconButton(
       icon: Icon(Icons.logout, color: color),
       tooltip: 'Cerrar Sesión',

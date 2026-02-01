@@ -1,5 +1,6 @@
 // add_operador_screen.dart
 import 'package:flutter/material.dart';
+import 'auth_helper.dart';
 
 class AddOperadorScreen extends StatefulWidget {
   const AddOperadorScreen({super.key});
@@ -49,6 +50,9 @@ class _AddOperadorScreenState extends State<AddOperadorScreen> {
         // Usamos un color distintivo y consistente
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          AuthHelper.logoutButton(context), // <--- AGREGAR EL BOTÓN AQUÍ
+        ],
       ),
       body: SingleChildScrollView( // Permite desplazamiento si el teclado aparece
         padding: const EdgeInsets.all(20.0),
