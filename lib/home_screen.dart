@@ -101,7 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          // BOTÓN DE PERFIL CON TOOLTIP Y LA IMAGEN DEL TIGRE
           Tooltip(
             message: 'Editar Perfil',
             child: GestureDetector(
@@ -139,9 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     _buildDynamicWelcomeBanner(),
-
                     const SizedBox(height: 30),
-
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -153,9 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     ..._menuOptions.map((option) {
                       final Color color = option['color'] as Color;
                       return Padding(
@@ -243,11 +238,16 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Image.asset(
-              _imageUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
+            // TRUCO: Transform.scale(1.05) hace que el logo crezca un poco
+            // para que el borde blanco quede fuera del recorte del círculo.
+            Transform.scale(
+              scale: 1.05,
+              child: Image.asset(
+                _imageUrl,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+              ),
             ),
 
             Positioned(
@@ -296,6 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// --- CLASES DE FONDO ANIMADO ---
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override
