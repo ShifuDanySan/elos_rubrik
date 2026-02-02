@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // Para detectar la Web
 import 'crear_rubrica_screen.dart';
 import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
@@ -137,7 +138,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
                 child: Column(
                   children: [
-                    _buildDynamicWelcomeBanner(),
+                    // FittedBox para responsividad en móviles
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _buildDynamicWelcomeBanner(),
+                    ),
                     const SizedBox(height: 30),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -220,6 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDynamicWelcomeBanner() {
     double size = 380;
 
+    // AQUÍ ESTÁ EL IF DE PLATAFORMA:
+    // En Web usamos 1.04 y en Android/iOS usamos 1.15
+    double scaleFactor = kIsWeb ? 1.04 : 1.15;
+
     return Container(
       width: size,
       height: size,
@@ -238,20 +247,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // LA CLAVE: Forzamos a que la imagen sea ligeramente más grande
-            // que el círculo de recorte para que el blanco quede "afuera"
-            // y usamos BoxFit.cover para mantener los colores originales.
-            SizedBox.expand(
-              child: Transform.scale(
-                scale: 1.04, // Aumentado para asegurar que no quede blanco
-                child: Image.asset(
-                  _imageUrl,
-                  fit: BoxFit.cover,
-                ),
+            Transform.scale(
+              scale: scaleFactor,
+              child: Image.asset(
+                _imageUrl,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
               ),
             ),
-
-            // Textos sobre el logo con sombras para legibilidad
             Positioned(
               top: 45,
               child: SizedBox(
@@ -297,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// --- CLASES DE FONDO ANIMADO (SIN CAMBIOS) ---
+// --- CLASES DE FONDO ANIMADO ---
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override
