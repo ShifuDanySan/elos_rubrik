@@ -238,10 +238,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // TRUCO: Transform.scale(1.05) hace que el logo crezca un poco
+            // TRUCO: Transform.scale(1.04) hace que el logo crezca un poco
             // para que el borde blanco quede fuera del recorte del círculo.
             Transform.scale(
-              scale: 1.05,
+              scale: 1.04,
               child: Image.asset(
                 _imageUrl,
                 width: size,
