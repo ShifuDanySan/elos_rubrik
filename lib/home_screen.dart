@@ -238,23 +238,24 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // TRUCO: Transform.scale(1.04) hace que el logo crezca un poco
-            // para que el borde blanco quede fuera del recorte del círculo.
-            Transform.scale(
-              scale: 1.04,
-              child: Image.asset(
-                _imageUrl,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
+            // LA CLAVE: Forzamos a que la imagen sea ligeramente más grande
+            // que el círculo de recorte para que el blanco quede "afuera"
+            // y usamos BoxFit.cover para mantener los colores originales.
+            SizedBox.expand(
+              child: Transform.scale(
+                scale: 1.04, // Aumentado para asegurar que no quede blanco
+                child: Image.asset(
+                  _imageUrl,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
 
+            // Textos sobre el logo con sombras para legibilidad
             Positioned(
-              top: 30,
-              child: Container(
+              top: 45,
+              child: SizedBox(
                 width: size * 0.8,
-                color: Colors.transparent,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -262,25 +263,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       _isLoading ? 'CARGANDO...' : _obtenerSaludoPorHora(),
                       style: const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                         color: Colors.white,
                         letterSpacing: 1.2,
                         shadows: [
-                          Shadow(blurRadius: 8, color: Colors.black, offset: Offset(2, 2)),
+                          Shadow(blurRadius: 12, color: Colors.black, offset: Offset(2, 2)),
                         ],
                       ),
                     ),
                     if (!_isLoading) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         _nombreUsuario.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 18,
+                          fontSize: 20,
                           color: Colors.white,
                           shadows: [
-                            Shadow(blurRadius: 10, color: Colors.black, offset: Offset(2, 2)),
+                            Shadow(blurRadius: 15, color: Colors.black, offset: Offset(2, 2)),
                           ],
                         ),
                       ),
@@ -296,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// --- CLASES DE FONDO ANIMADO ---
+// --- CLASES DE FONDO ANIMADO (SIN CAMBIOS) ---
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override
