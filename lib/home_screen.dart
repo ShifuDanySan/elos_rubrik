@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'crear_rubrica_screen.dart';
 import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
+import 'profile_edit_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
 import 'auth_helper.dart';
@@ -25,6 +26,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _nombreUsuario = "";
+  String? _photoUrl;
   bool _isLoading = true;
 
   @override
@@ -46,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final data = doc.data()!;
           setState(() {
             _nombreUsuario = "${data['nombre'] ?? ''} ${data['apellido'] ?? ''}";
+            _photoUrl = data['photoUrl'];
             _isLoading = false;
           });
         }
@@ -98,6 +101,30 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          // BOTÓN DE PERFIL CON TOOLTIP Y LA IMAGEN DEL TIGRE
+          Tooltip(
+            message: 'Editar Perfil',
+            child: GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                ).then((_) => _cargarDatosUsuario());
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white24,
+                  backgroundImage: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                      ? NetworkImage(_photoUrl!)
+                      : null,
+                  child: (_photoUrl == null || _photoUrl!.isEmpty)
+                      ? const Icon(Icons.account_circle, color: Colors.white)
+                      : null,
+                ),
+              ),
+            ),
+          ),
           AuthHelper.logoutButton(context),
         ],
       ),
@@ -216,7 +243,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 1. LOGO COMPLETO
             Image.asset(
               _imageUrl,
               width: size,
@@ -224,12 +250,11 @@ class _HomeScreenState extends State<HomeScreen> {
               fit: BoxFit.cover,
             ),
 
-            // 2. TEXTO SIN FONDO (Transparente)
             Positioned(
               top: 30,
               child: Container(
                 width: size * 0.8,
-                color: Colors.transparent, // Fondo totalmente transparente
+                color: Colors.transparent,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -240,7 +265,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w400,
                         color: Colors.white,
                         letterSpacing: 1.2,
-                        // Sombras para que se lea sin fondo
                         shadows: [
                           Shadow(blurRadius: 8, color: Colors.black, offset: Offset(2, 2)),
                         ],
@@ -272,11 +296,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ... (Las clases FloatingShapesBackground y PositionedShape permanecen iguales)
-// ===============================================
-// WIDGETS DE FONDO ANIMADO
-// ===============================================
-
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override
@@ -306,14 +325,11 @@ class _FloatingShapesBackgroundState extends State<FloatingShapesBackground> {
       final double size = 30.0 + _random.nextDouble() * 120.0;
       final Color color = _random.nextBool() ? _primaryColor : _accentColor;
       final Duration duration = Duration(seconds: 15 + _random.nextInt(20));
-      final double initialX = -0.5 + _random.nextDouble() * 2.0;
-      final double initialY = -0.5 + _random.nextDouble() * 2.0;
-
       _floatingShapes.add(
         PositionedShape(
           key: ValueKey('shape_$i'),
-          initialPositionX: initialX,
-          initialPositionY: initialY,
+          initialPositionX: -0.5 + _random.nextDouble() * 2.0,
+          initialPositionY: -0.5 + _random.nextDouble() * 2.0,
           size: size,
           color: color,
           duration: duration,
@@ -336,12 +352,10 @@ class _FloatingShapesBackgroundState extends State<FloatingShapesBackground> {
 }
 
 class PositionedShape extends StatefulWidget {
-  final double size;
+  final double size, initialPositionX, initialPositionY;
   final Color color;
   final Duration duration;
   final bool isSquare;
-  final double initialPositionX;
-  final double initialPositionY;
 
   const PositionedShape({
     super.key,
@@ -378,25 +392,17 @@ class _PositionedShapeState extends State<PositionedShape> with SingleTickerProv
     super.dispose();
   }
 
-  Offset getMotionOffset(double animationValue) {
-    final dx = math.sin(animationValue * 2 * math.pi + _sinOffset) * _motionRange / 2;
-    final dy = math.cos(animationValue * 2 * math.pi + _cosOffset) * _motionRange / 2;
-    return Offset(dx, dy);
-  }
-
   @override
   Widget build(BuildContext context) {
     final constraints = MediaQuery.of(context).size;
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final initialTop = widget.initialPositionY * constraints.height;
-        final initialLeft = widget.initialPositionX * constraints.width;
-        final motion = getMotionOffset(_controller.value);
-
+        final dx = math.sin(_controller.value * 2 * math.pi + _sinOffset) * _motionRange / 2;
+        final dy = math.cos(_controller.value * 2 * math.pi + _cosOffset) * _motionRange / 2;
         return Positioned(
-          top: initialTop + motion.dy,
-          left: initialLeft + motion.dx,
+          top: widget.initialPositionY * constraints.height + dy,
+          left: widget.initialPositionX * constraints.width + dx,
           child: Transform.rotate(
             angle: _controller.value * math.pi / 2,
             child: Opacity(

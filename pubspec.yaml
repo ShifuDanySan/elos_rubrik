@@ -28,7 +28,8 @@ dependencies:
   excel: ^4.0.0
   flutter_localizations:
     sdk: flutter
-
+  image_picker: ^1.0.7
+  firebase_storage: ^11.6.0
 
 dev_dependencies:
   flutter_test:
