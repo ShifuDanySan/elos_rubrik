@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'pdf_service.dart'; // Asegúrate de que este archivo exista
+import 'pdf_service.dart';
 
 class DetalleEvaluacionScreen extends StatelessWidget {
-  // Solo recibimos el mapa de la evaluación para evitar conflictos de parámetros
   final Map<String, dynamic> evaluacion;
 
   const DetalleEvaluacionScreen({super.key, required this.evaluacion});
@@ -15,7 +14,6 @@ class DetalleEvaluacionScreen extends StatelessWidget {
     final String estudiante = evaluacion['estudiante'] ?? 'Sin nombre';
     final double notaFinal = (evaluacion['notaFinal'] ?? 0.0).toDouble();
 
-    // Formateo de fecha
     String fechaStr = "S/F";
     if (evaluacion['fecha'] is Timestamp) {
       fechaStr = DateFormat('dd/MM/yyyy').format((evaluacion['fecha'] as Timestamp).toDate());
@@ -29,11 +27,21 @@ class DetalleEvaluacionScreen extends StatelessWidget {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          // Botón para generar el PDF
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            onPressed: () => PdfService.generarReporteEvaluacion(evaluacion),
-            tooltip: "Exportar a PDF",
+          // REFORMA: Botón optimizado para Web (Icono + Texto)
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: TextButton.icon(
+              onPressed: () => PdfService.generarReporteEvaluacion(evaluacion),
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
+              label: const Text(
+                  "EXPORTAR PDF",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)
+              ),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       ),
@@ -42,15 +50,11 @@ class DetalleEvaluacionScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cabecera de datos
             _buildInfoCard(estudiante, evaluacion['nombre'] ?? 'Rúbrica', fechaStr, notaFinal, primaryColor),
-
             const SizedBox(height: 20),
             const Text("RESULTADOS POR CRITERIO",
                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
             const Divider(),
-
-            // Listado de Criterios (Estructura Jerárquica)
             ...criterios.map((c) => _buildCriterioTile(c)).toList(),
           ],
         ),
@@ -78,8 +82,6 @@ class DetalleEvaluacionScreen extends StatelessWidget {
 
   Widget _buildCriterioTile(Map<String, dynamic> criterio) {
     final List descriptores = criterio['descriptores'] ?? [];
-
-    // Suma de los resultados de los descriptores para la nota del criterio
     double notaCriterio = 0.0;
     for (var d in descriptores) {
       notaCriterio += (d['resultado_descriptor'] ?? 0.0).toDouble();
@@ -108,7 +110,7 @@ class DetalleEvaluacionScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("• ${ana['nombre']}", style: const TextStyle(fontSize: 12)),
+                      Text("- ${ana['nombre']}", style: const TextStyle(fontSize: 12)),
                       Text("Val: ${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
                           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
                     ],
