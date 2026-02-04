@@ -6,12 +6,14 @@ class EjecutarEvaluacionScreen extends StatefulWidget {
   final Map<String, dynamic> rubricaData;
   final String estudiante;
   final String rubricaId;
+  final String nombre; // <-- Nuevo parámetro para recibir el nombre como String
 
   const EjecutarEvaluacionScreen({
     super.key,
     required this.rubricaData,
     required this.estudiante,
     required this.rubricaId,
+    required this.nombre, // <-- Requerido
   });
 
   @override
@@ -123,6 +125,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
           .collection('artifacts/rubrica_evaluator/users/$userId/evaluaciones')
           .add({
         'estudiante': widget.estudiante,
+        'nombre': widget.nombre, // <-- Cambio clave: Guardamos el nombre pasado como String
         'notaFinal': _calcularNotaFinal(),
         'fecha': FieldValue.serverTimestamp(),
         'criterios': estructuraAEnviar,

@@ -77,16 +77,12 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
           int idxNombre = -1, idxApellido = -1, idxDni = -1;
           var headerRow = sheet.rows.first;
 
-          // Mapeo preciso de columnas
           for (int i = 0; i < headerRow.length; i++) {
             String val = headerRow[i]?.value.toString().toLowerCase().trim() ?? "";
-
-            // Priorizamos coincidencias exactas para evitar que DNI tome el Apellido
             if (val == "nombre") idxNombre = i;
             else if (val == "apellido") idxApellido = i;
             else if (val == "dni" || val == "documento" || val == "nro documento") idxDni = i;
 
-            // Búsqueda flexible si aún no se encontraron
             if (idxNombre == -1 && val.contains("nombre")) idxNombre = i;
             if (idxApellido == -1 && val.contains("apellido")) idxApellido = i;
             if (idxDni == -1 && (val.contains("dni") || val.contains("doc"))) idxDni = i;
@@ -100,8 +96,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
 
           for (int i = 1; i < sheet.maxRows; i++) {
             var row = sheet.rows[i];
-
-            // Obtener valores de las celdas
             String nombre = row[idxNombre]?.value?.toString().toUpperCase().trim() ?? "";
             String apellido = row[idxApellido]?.value?.toString().toUpperCase().trim() ?? "";
             String dni = row[idxDni]?.value?.toString().trim() ?? "S/D";
@@ -149,7 +143,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
           children: [
             const Text("Carga de Estudiantes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-
             ElevatedButton.icon(
               onPressed: _importarExcel,
               icon: const Icon(Icons.upload_file, color: Colors.white),
@@ -160,9 +153,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
-
             const SizedBox(height: 30),
-
             if (_estudiantesLista.isNotEmpty) ...[
               const Text("Estudiante a evaluar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 10),
@@ -183,9 +174,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
             ] else ...[
               _buildEmptyState(),
             ],
-
             const Spacer(),
-
             ElevatedButton(
               onPressed: (_estudianteSeleccionado == null || _rubricaData == null)
                   ? null
@@ -195,8 +184,9 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
                   MaterialPageRoute(
                     builder: (context) => EjecutarEvaluacionScreen(
                       rubricaId: widget.rubricaId,
-                      estudiante: _estudianteSeleccionado!,
-                      rubricaData: _rubricaData!,
+                      nombre: widget.nombreRubrica, // String
+                      estudiante: _estudianteSeleccionado!, // String corregido
+                      rubricaData: _rubricaData!, // Map definido
                     ),
                   ),
                 );

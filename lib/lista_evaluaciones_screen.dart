@@ -1,19 +1,9 @@
-// lista_evaluaciones_screen.dart (Versión Corregida con Filtro Funcional)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'detalle_evaluacion_screen.dart';
 import 'auth_helper.dart';
-
-// ===============================================
-// CONSTANTES DE ENTORNO Y ESTILO
-// ===============================================
-const String __app_id = 'rubrica_evaluator';
-
-const Color primaryColor = Color(0xFF00796B);
-const Color accentColor = Color(0xFF4CAF50);
-const Color errorColor = Color(0xFFEF5350);
-const Color warningColor = Color(0xFFFF9800);
 
 class ListaEvaluacionesScreen extends StatefulWidget {
   const ListaEvaluacionesScreen({super.key});
@@ -23,203 +13,110 @@ class ListaEvaluacionesScreen extends StatefulWidget {
 }
 
 class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
+  final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
 
-  // ----------------------------------------------------
-  // 1. Lógica de Carga de Evaluaciones (Firestore)
-  // ----------------------------------------------------
-  Stream<QuerySnapshot<Map<String, dynamic>>> _fetchEvaluacionesStream() {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return const Stream.empty();
-
-    // Referencia corregida a tu estructura de Firebase
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('artifacts')
-        .doc(__app_id)
-        .collection('users')
-        .doc(userId)
-        .collection('evaluaciones');
-
-    // FILTRO POR FECHA: Usamos el campo 'fecha' que es el que genera serverTimestamp
-    if (_fechaFiltro != null) {
-      DateTime inicioDia = DateTime(_fechaFiltro!.year, _fechaFiltro!.month, _fechaFiltro!.day);
-      DateTime finDia = inicioDia.add(const Duration(days: 1));
-
-      query = query
-          .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDia))
-          .where('fecha', isLessThan: Timestamp.fromDate(finDia));
-    }
-
-    return query.orderBy('fecha', descending: true).snapshots();
-  }
-
-  // ----------------------------------------------------
-  // 2. Selector de Fecha (Date Picker)
-  // ----------------------------------------------------
-  Future<void> _seleccionarFecha(BuildContext context) async {
-    final DateTime? seleccionado = await showDatePicker(
+  void _confirmarEliminacion(String docId, String estudiante) {
+    showDialog(
       context: context,
-      initialDate: _fechaFiltro ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: primaryColor),
+      builder: (context) => AlertDialog(
+        title: const Text("¿Eliminar evaluación?"),
+        content: Text("¿Deseas eliminar permanentemente la evaluación de $estudiante?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCELAR")),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final userId = FirebaseAuth.instance.currentUser?.uid;
+              await FirebaseFirestore.instance
+                  .collection('artifacts/$__app_id/users/$userId/evaluaciones')
+                  .doc(docId)
+                  .delete();
+            },
+            child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
           ),
-          child: child!,
-        );
-      },
-    );
-
-    if (seleccionado != null) {
-      setState(() => _fechaFiltro = seleccionado);
-    }
-  }
-
-  void _limpiarFiltro() {
-    setState(() => _fechaFiltro = null);
-  }
-
-  // ----------------------------------------------------
-  // 3. Navegación al Detalle
-  // ----------------------------------------------------
-  void _verDetalleEvaluacion(BuildContext context, Map<String, dynamic> evaluacion) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => DetalleEvaluacionScreen(evaluacion: evaluacion),
+        ],
       ),
     );
-  }
-
-  // ----------------------------------------------------
-  // 4. Funciones de Estilo
-  // ----------------------------------------------------
-  Color _getNotaColor(double nota) {
-    if (nota >= 0.9) return accentColor;
-    if (nota >= 0.7) return primaryColor;
-    if (nota >= 0.5) return warningColor;
-    return errorColor;
   }
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('artifacts/$__app_id/users/$userId/evaluaciones')
+        .orderBy('fecha', descending: true);
+
+    if (_fechaFiltro != null) {
+      DateTime inicio = DateTime(_fechaFiltro!.year, _fechaFiltro!.month, _fechaFiltro!.day);
+      DateTime fin = inicio.add(const Duration(days: 1));
+      query = query.where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+          .where('fecha', isLessThan: Timestamp.fromDate(fin));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Evaluaciones'),
-        backgroundColor: primaryColor,
+        backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
         actions: [
+          if (_fechaFiltro != null)
+            IconButton(
+                icon: const Icon(Icons.filter_alt_off),
+                onPressed: () => setState(() => _fechaFiltro = null)
+            ),
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _fechaFiltro ?? DateTime.now(),
+                firstDate: DateTime(2025),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) setState(() => _fechaFiltro = picked);
+            },
+          ),
           AuthHelper.logoutButton(context),
         ],
       ),
-      body: Column(
-        children: [
-          // PANEL DE FILTROS
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _seleccionarFecha(context),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text(
-                      _fechaFiltro == null
-                          ? 'FILTRAR POR FECHA'
-                          : '${_fechaFiltro!.day}/${_fechaFiltro!.month}/${_fechaFiltro!.year}',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _fechaFiltro == null ? Colors.white : primaryColor,
-                      foregroundColor: _fechaFiltro == null ? primaryColor : Colors.white,
-                    ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: query.snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) return const Center(child: Text("No se encontraron evaluaciones."));
+
+          return ListView.builder(
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
+              final double nota = (data['notaFinal'] ?? 0.0).toDouble();
+              final String estudiante = data['estudiante'] ?? 'N/A';
+              final String id = docs[index].id;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,
+                    child: Text(nota.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+                  title: Text(estudiante, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("Rúbrica: ${data['nombre']}"),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: () => _confirmarEliminacion(id, estudiante),
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data)),
                   ),
                 ),
-                if (_fechaFiltro != null) ...[
-                  const SizedBox(width: 10),
-                  IconButton(
-                    onPressed: _limpiarFiltro,
-                    icon: const Icon(Icons.clear_all, color: errorColor),
-                    tooltip: 'Mostrar todas',
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // LISTADO (STREAM BUILDER)
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _fetchEvaluacionesStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: errorColor)));
-                }
-
-                final evaluacionesDocs = snapshot.data?.docs ?? [];
-
-                if (evaluacionesDocs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.search_off, size: 64, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          _fechaFiltro == null ? 'No hay evaluaciones.' : 'No hay datos para esta fecha.',
-                          style: const TextStyle(fontSize: 18, color: primaryColor),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemCount: evaluacionesDocs.length,
-                  itemBuilder: (context, index) {
-                    final evaluacionDoc = evaluacionesDocs[index];
-                    final evaluacionData = evaluacionDoc.data();
-
-                    final double notaFinal = (evaluacionData['notaFinal'] ?? 0.0).toDouble();
-                    final notaColor = _getNotaColor(notaFinal);
-
-                    // Usamos el campo 'fecha' de Firestore
-                    final Timestamp? timestamp = evaluacionData['fecha'] as Timestamp?;
-                    final DateTime? fecha = timestamp?.toDate();
-                    final String fechaStr = fecha != null
-                        ? '${fecha.day}/${fecha.month}/${fecha.year} ${fecha.hour}:${fecha.minute.toString().padLeft(2, '0')}'
-                        : 'Sin fecha';
-
-                    return Card(
-                      elevation: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: notaColor,
-                          child: Text(notaFinal.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(evaluacionData['estudiante'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Rúbrica: ${evaluacionData['nombreRubrica'] ?? 'S/N'}\n$fechaStr'),
-                        trailing: const Icon(Icons.chevron_right, color: primaryColor),
-                        onTap: () => _verDetalleEvaluacion(context, evaluacionData),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
     );
   }

@@ -25,7 +25,9 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: primaryColor)),
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: primaryColor),
+        ),
         child: child!,
       ),
     );
@@ -46,7 +48,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Divider(),
-            // OPCIÓN EVALUAR: Según el error, AQUÍ NO VA nombreInicial
             ListTile(
               leading: const Icon(Icons.play_circle_fill, color: Colors.green),
               title: const Text("Evaluar Estudiante"),
@@ -63,7 +64,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 );
               },
             ),
-            // OPCIÓN EDITAR: Según el error, AQUÍ SÍ ES OBLIGATORIO nombreInicial
             ListTile(
               leading: const Icon(Icons.edit, color: Colors.blue),
               title: const Text("Editar Estructura"),
@@ -74,7 +74,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                   MaterialPageRoute(
                     builder: (context) => EditarRubricaScreen(
                       rubricaId: docId,
-                      nombreInicial: rubrica['nombre'] ?? '', // Requerido por Editar
+                      nombreInicial: rubrica['nombre'] ?? '',
                     ),
                   ),
                 );
