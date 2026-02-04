@@ -47,7 +47,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
             },
             child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
           ),
-          AuthHelper.logoutButton(context),
         ],
       ),
     );
@@ -87,6 +86,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
+              autofocus: true, // Se posiciona el cursor aquí al entrar
               decoration: InputDecoration(
                 hintText: "Buscar estudiante...",
                 prefixIcon: const Icon(Icons.person_search, color: primaryColor),
@@ -150,7 +150,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                     final String id = docs[index].id;
                     final timestamp = data['fecha'] as Timestamp?;
 
-                    // Solo fecha sin hora para el listado
                     final String fechaLabel = timestamp != null
                         ? DateFormat('dd/MM/yyyy').format(timestamp.toDate())
                         : "S/F";

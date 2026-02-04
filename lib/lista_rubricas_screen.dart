@@ -115,6 +115,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
+              autofocus: true, // Se posiciona el cursor aquí al entrar
               decoration: InputDecoration(
                 hintText: "Buscar rúbrica...",
                 prefixIcon: const Icon(Icons.search),
