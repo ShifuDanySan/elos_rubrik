@@ -107,7 +107,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
             },
           ),
           if (_fechaFiltro != null) IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
-          AuthHelper.logoutButton(context, color: Colors.white),
+          AuthHelper.logoutButton(context),
         ],
       ),
       body: Column(

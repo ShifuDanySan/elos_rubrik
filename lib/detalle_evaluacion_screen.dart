@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'pdf_service.dart';
+import 'auth_helper.dart';
 
 class DetalleEvaluacionScreen extends StatelessWidget {
   final Map<String, dynamic> evaluacion;
@@ -43,6 +44,7 @@ class DetalleEvaluacionScreen extends StatelessWidget {
               ),
             ),
           ),
+          AuthHelper.logoutButton(context),
         ],
       ),
       body: SingleChildScrollView(
