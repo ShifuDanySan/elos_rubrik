@@ -18,24 +18,24 @@ dependencies:
     sdk: flutter
   # Dependencias de Firebase actualizadas a versiones compatibles y estables
   # dentro de la familia 4.x.x (para auth/firestore) y 2.x.x (para core).
-  firebase_core: ^2.25.0
-  firebase_auth: 4.16.0  # Actualizado para mejor estabilidad y compatibilidad con sus dependencias web.
-  cloud_firestore: ^4.17.0 # Actualizado para alinearse con la última versión 4.x.x/2.x.x.
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4  # Actualizado para mejor estabilidad y compatibilidad con sus dependencias web.
+  cloud_firestore: ^6.1.2 # Actualizado para alinearse con la última versión 4.x.x/2.x.x.
   crypto: ^3.0.3
   # La siguiente línea añade la fuente de Cupertino Icons a tu aplicación.
   cupertino_icons: ^1.0.8
-  file_picker: ^8.0.0 # O la versión más reciente
+  file_picker: ^10.3.10 # O la versión más reciente
   excel: ^4.0.0
   flutter_localizations:
     sdk: flutter
   image_picker: ^1.0.7
-  firebase_storage: ^11.6.0
-  intl: ^0.20.2
+  firebase_storage: ^13.0.6
   pdf: ^3.11.3
   printing: ^5.13.1
+  intl: ^0.20.2
   path_provider: ^2.1.5
-  fl_chart: ^0.70.0
-  share_plus: 10.0.0
+  fl_chart: ^1.1.1
+  share_plus: ^12.0.1
   url_launcher: ^6.2.5
   open_filex: ^4.7.0
 
@@ -45,7 +45,7 @@ dev_dependencies:
 
   # El paquete "flutter_lints" a continuación contiene un conjunto de lints recomendados
   # para fomentar buenas prácticas de codificación.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # Para obtener información sobre la parte genérica de Dart de este archivo, consulta:
 # https://dart.dev/tools/pub/pubspec

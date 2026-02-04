@@ -15,23 +15,35 @@ class ListaEvaluacionesScreen extends StatefulWidget {
 class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
+  String _filtroEstudiante = ""; // Estado para el buscador de alumnos
+
+  // FUNCIÓN PARA NORMALIZAR TEXTO (Ignora acentos y mayúsculas)
+  String _normalizarTexto(String texto) {
+    var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
+    var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUaeiouAEIOUnN';
+    String salida = texto;
+    for (int i = 0; i < conAcentos.length; i++) {
+      salida = salida.replaceAll(conAcentos[i], sinAcentos[i]);
+    }
+    return salida.toLowerCase().trim();
+  }
 
   void _confirmarEliminacion(String docId, String estudiante) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("¿Eliminar evaluación?"),
-        content: Text("¿Deseas eliminar permanentemente la evaluación de $estudiante?"),
+        title: const Text("Eliminar Evaluación"),
+        content: Text("¿Estás seguro de que deseas eliminar la evaluación de $estudiante?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCELAR")),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
               final userId = FirebaseAuth.instance.currentUser?.uid;
               await FirebaseFirestore.instance
                   .collection('artifacts/$__app_id/users/$userId/evaluaciones')
                   .doc(docId)
                   .delete();
+              if (mounted) Navigator.pop(context);
             },
             child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
           ),
@@ -43,80 +55,130 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('artifacts/$__app_id/users/$userId/evaluaciones')
-        .orderBy('fecha', descending: true);
-
-    if (_fechaFiltro != null) {
-      DateTime inicio = DateTime(_fechaFiltro!.year, _fechaFiltro!.month, _fechaFiltro!.day);
-      DateTime fin = inicio.add(const Duration(days: 1));
-      query = query.where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
-          .where('fecha', isLessThan: Timestamp.fromDate(fin));
-    }
+    const Color primaryColor = Color(0xFF1A237E);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis Evaluaciones'),
-        backgroundColor: const Color(0xFF1A237E),
+        title: const Text("Mis Evaluaciones"),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          if (_fechaFiltro != null)
-            IconButton(
-                icon: const Icon(Icons.filter_alt_off),
-                onPressed: () => setState(() => _fechaFiltro = null)
-            ),
           IconButton(
-            icon: const Icon(Icons.calendar_month),
+            icon: const Icon(Icons.calendar_today),
             onPressed: () async {
               final picked = await showDatePicker(
                 context: context,
                 initialDate: _fechaFiltro ?? DateTime.now(),
-                firstDate: DateTime(2025),
+                firstDate: DateTime(2020),
                 lastDate: DateTime.now(),
               );
               if (picked != null) setState(() => _fechaFiltro = picked);
             },
           ),
-          AuthHelper.logoutButton(context),
+          if (_fechaFiltro != null)
+            IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
+          AuthHelper.logoutButton(context, color: Colors.white),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: query.snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text("No se encontraron evaluaciones."));
+      body: Column(
+        children: [
+          // --- BUSCADOR DE ESTUDIANTES ---
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Buscar estudiante...",
+                prefixIcon: const Icon(Icons.person_search, color: primaryColor),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                filled: true,
+                fillColor: Colors.white,
+                suffixIcon: _filtroEstudiante.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _filtroEstudiante = ""))
+                    : null,
+              ),
+              onChanged: (val) => setState(() => _filtroEstudiante = val),
+            ),
+          ),
 
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data = docs[index].data();
-              final double nota = (data['notaFinal'] ?? 0.0).toDouble();
-              final String estudiante = data['estudiante'] ?? 'N/A';
-              final String id = docs[index].id;
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('artifacts/$__app_id/users/$userId/evaluaciones')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return const Center(child: Text("Error al cargar evaluaciones"));
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,
-                    child: Text(nota.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 12)),
-                  ),
-                  title: Text(estudiante, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Rúbrica: ${data['nombre']}"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                    onPressed: () => _confirmarEliminacion(id, estudiante),
-                  ),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data)),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                var docs = snapshot.data?.docs ?? [];
+
+                // --- 1. FILTRADO POR ESTUDIANTE (NORMALIZADO) ---
+                if (_filtroEstudiante.isNotEmpty) {
+                  final busqueda = _normalizarTexto(_filtroEstudiante);
+                  docs = docs.where((d) {
+                    final nombreEstudiante = _normalizarTexto(d.data()['estudiante'] ?? "");
+                    return nombreEstudiante.contains(busqueda);
+                  }).toList();
+                }
+
+                // --- 2. FILTRADO POR FECHA ---
+                if (_fechaFiltro != null) {
+                  docs = docs.where((d) {
+                    final timestamp = d.data()['fecha'] as Timestamp?;
+                    if (timestamp == null) return false;
+                    final date = timestamp.toDate();
+                    return date.day == _fechaFiltro!.day && date.month == _fechaFiltro!.month && date.year == _fechaFiltro!.year;
+                  }).toList();
+                }
+
+                // --- 3. ORDENAR POR FECHA (Más reciente primero) ---
+                docs.sort((a, b) {
+                  final dateA = (a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  final dateB = (b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  return dateB.compareTo(dateA);
+                });
+
+                if (docs.isEmpty) return const Center(child: Text("No hay evaluaciones que coincidan."));
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data();
+                    final double nota = (data['notaFinal'] ?? 0.0).toDouble();
+                    final String estudiante = data['estudiante'] ?? 'N/A';
+                    final String id = docs[index].id;
+                    final timestamp = data['fecha'] as Timestamp?;
+
+                    // Solo fecha sin hora para el listado
+                    final String fechaLabel = timestamp != null
+                        ? DateFormat('dd/MM/yyyy').format(timestamp.toDate())
+                        : "S/F";
+
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,
+                          child: Text(nota.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(estudiante, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text("${data['nombre']}\n$fechaLabel"),
+                        isThreeLine: true,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          onPressed: () => _confirmarEliminacion(id, estudiante),
+                        ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data)),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

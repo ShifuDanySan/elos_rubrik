@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb; // Para detectar la Web
 import 'crear_rubrica_screen.dart';
 import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
-import 'profile_edit_screen.dart';
+// import 'profile_edit_screen.dart'; // <--- ELIMINADO PARA CORREGIR ERROR
 import 'dart:math' as math;
 import 'dart:math';
 import 'auth_helper.dart';
@@ -50,6 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             _nombreUsuario = "${data['nombre'] ?? ''} ${data['apellido'] ?? ''}";
             _photoUrl = data['photoUrl'];
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _nombreUsuario = user.displayName ?? "USUARIO";
             _isLoading = false;
           });
         }
@@ -103,12 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         actions: [
           Tooltip(
-            message: 'Editar Perfil',
+            message: 'Perfil',
             child: GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
-                ).then((_) => _cargarDatosUsuario());
+                // CORRECCIÓN: En lugar de navegar a ProfileEditScreen, informamos al usuario
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Ajustes de perfil no disponibles.")),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -138,7 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
                 child: Column(
                   children: [
-                    // FittedBox para responsividad en móviles
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: _buildDynamicWelcomeBanner(),
@@ -224,9 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDynamicWelcomeBanner() {
     double size = 380;
-
-    // AQUÍ ESTÁ EL IF DE PLATAFORMA:
-    // En Web usamos 1.04 y en Android/iOS usamos 1.15
     double scaleFactor = kIsWeb ? 1.04 : 1.15;
 
     return Container(

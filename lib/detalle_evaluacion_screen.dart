@@ -1,165 +1,124 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'pdf_service.dart'; // Asegúrate de que este archivo exista
 
 class DetalleEvaluacionScreen extends StatelessWidget {
+  // Solo recibimos el mapa de la evaluación para evitar conflictos de parámetros
   final Map<String, dynamic> evaluacion;
 
   const DetalleEvaluacionScreen({super.key, required this.evaluacion});
 
   @override
   Widget build(BuildContext context) {
-    final String estudiante = evaluacion['estudiante'] ?? 'N/A';
+    final List criterios = evaluacion['criterios'] ?? [];
+    final String estudiante = evaluacion['estudiante'] ?? 'Sin nombre';
     final double notaFinal = (evaluacion['notaFinal'] ?? 0.0).toDouble();
-    final String nombreRubrica = evaluacion['nombre'] ?? 'Sin nombre especificado';
 
-    String fechaStr = "N/A";
-    if (evaluacion['fecha'] != null) {
-      fechaStr = DateFormat('dd/MM/yyyy HH:mm').format(evaluacion['fecha'].toDate());
+    // Formateo de fecha
+    String fechaStr = "S/F";
+    if (evaluacion['fecha'] is Timestamp) {
+      fechaStr = DateFormat('dd/MM/yyyy').format((evaluacion['fecha'] as Timestamp).toDate());
     }
 
-    final List criterios = evaluacion['criterios'] as List? ?? [];
+    const Color primaryColor = Color(0xFF1A237E);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text("Detalle de Evaluación"),
-        backgroundColor: const Color(0xFF1A237E),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          // Botón para generar el PDF
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () => PdfService.generarReporteEvaluacion(evaluacion),
+            tooltip: "Exportar a PDF",
+          ),
+        ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SECCIÓN CABECERA: Estudiante y Nota
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: Colors.black12)),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    estudiante,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 5),
-                  Text("Fecha: $fechaStr", style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 15),
+            // Cabecera de datos
+            _buildInfoCard(estudiante, evaluacion['nombre'] ?? 'Rúbrica', fechaStr, notaFinal, primaryColor),
 
-                  // ETIQUETA LLAMATIVA DE LA RÚBRICA
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A237E).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF1A237E).withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.assignment_turned_in, size: 18, color: Color(0xFF1A237E)),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Rúbrica: $nombreRubrica",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A237E),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            const SizedBox(height: 20),
+            const Text("RESULTADOS POR CRITERIO",
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+            const Divider(),
 
-                  const SizedBox(height: 20),
-                  Text(
-                    notaFinal.toStringAsFixed(2),
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: notaFinal >= 7 ? const Color(0xFF2E7D32) : Colors.orange.shade800,
-                    ),
-                  ),
-                  const Text("NOTA FINAL", style: TextStyle(letterSpacing: 1.5, fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
-
-            // LISTADO DE CRITERIOS EVALUADOS
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "DESGLOSE POR CRITERIO",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 10),
-                  ...criterios.map((crit) {
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: ExpansionTile(
-                        title: Text(
-                          crit['nombre'] ?? 'Criterio',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        trailing: Text(
-                          "Nota: ${crit['notaObtenida']?.toStringAsFixed(2) ?? '0.00'}",
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B)),
-                        ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              children: (crit['descriptores'] as List? ?? []).map((desc) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      desc['contexto'] ?? '',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    // Muestra los analíticos y lo que se evaluó en ellos
-                                    ...(desc['analiticos'] as List? ?? []).map((ana) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(left: 8.0, bottom: 4),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                "- ${ana['nombre']}",
-                                                style: const TextStyle(fontSize: 12, color: Colors.black87),
-                                              ),
-                                            ),
-                                            Text(
-                                              "Val: ${ana['valor_asignado']?.toStringAsFixed(2)}",
-                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                    const Divider(),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          )
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ],
-              ),
-            ),
+            // Listado de Criterios (Estructura Jerárquica)
+            ...criterios.map((c) => _buildCriterioTile(c)).toList(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String alumno, String rubrica, String fecha, double nota, Color color) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        title: Text(alumno, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        subtitle: Text("$rubrica\nFecha: $fecha"),
+        trailing: CircleAvatar(
+          radius: 28,
+          backgroundColor: color,
+          child: Text(nota.toStringAsFixed(2),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCriterioTile(Map<String, dynamic> criterio) {
+    final List descriptores = criterio['descriptores'] ?? [];
+
+    // Suma de los resultados de los descriptores para la nota del criterio
+    double notaCriterio = 0.0;
+    for (var d in descriptores) {
+      notaCriterio += (d['resultado_descriptor'] ?? 0.0).toDouble();
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        title: Text(criterio['nombre'] ?? 'Criterio',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        trailing: Text(notaCriterio.toStringAsFixed(2),
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B))),
+        children: descriptores.map((desc) {
+          final List analiticos = desc['analiticos'] ?? [];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(desc['contexto'] ?? 'Descriptor',
+                    style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.black54)),
+                const SizedBox(height: 5),
+                ...analiticos.map((ana) => Padding(
+                  padding: const EdgeInsets.only(left: 10, bottom: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("• ${ana['nombre']}", style: const TextStyle(fontSize: 12)),
+                      Text("Val: ${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                )).toList(),
+                const Divider(height: 20),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
