@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'auth_helper.dart';
 
 class EjecutarEvaluacionScreen extends StatefulWidget {
   final Map<String, dynamic> rubricaData;
@@ -147,6 +148,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
         title: Text("Calificando a: ${widget.estudiante}"),
         backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
+        actions: [AuthHelper.logoutButton(context)],
       ),
       body: Column(
         children: [
