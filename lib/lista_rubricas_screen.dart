@@ -1,147 +1,181 @@
-// lista_rubricas_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'evaluar_rubrica_screen.dart';
-import 'crear_rubrica_screen.dart';
+import 'editar_rubrica_screen.dart';
 import 'auth_helper.dart';
 
-// ===============================================
-// CONSTANTES DE ENTORNO (Sincronizadas)
-// ===============================================
-const String __app_id = 'rubrica_evaluator'; // ✅ VALOR CORREGIDO Y SINCRONIZADO
+const String __app_id = 'rubrica_evaluator';
+const Color primaryColor = Color(0xFF1A237E);
 
-// Colores consistentes
-const Color primaryColor = Color(0xFF00796B); // Teal oscuro
-const Color accentColor = Color(0xFF4CAF50); // Verde Éxito
-const Color errorColor = Color(0xFFEF5350); // Rojo Error
-const Color backgroundColor = Color(0xFFE0F2F1); // Teal 50 (Fondo)
-
-
-class ListaRubricasScreen extends StatelessWidget {
+class ListaRubricasScreen extends StatefulWidget {
   const ListaRubricasScreen({super.key});
 
-  // ----------------------------------------------------
-  // 1. Lógica de Carga de Rúbricas (Firestore)
-  // ----------------------------------------------------
+  @override
+  State<ListaRubricasScreen> createState() => _ListaRubricasScreenState();
+}
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _fetchRubricasStream() {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      return const Stream.empty();
-    }
+class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
+  DateTime? _fechaFiltro;
 
-    // Ruta de la colección: artifacts/{appId}/users/{userId}/rubricas
-    final collectionPath = 'artifacts/$__app_id/users/$userId/rubricas';
-
-    // Usamos Stream para obtener actualizaciones en tiempo real
-    return FirebaseFirestore.instance
-        .collection(collectionPath)
-        .orderBy('fechaCreacion', descending: true)
-        .snapshots();
+  Future<void> _seleccionarFecha(BuildContext context) async {
+    final DateTime? seleccionado = await showDatePicker(
+      context: context,
+      initialDate: _fechaFiltro ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: primaryColor)),
+        child: child!,
+      ),
+    );
+    if (seleccionado != null) setState(() => _fechaFiltro = seleccionado);
   }
 
-  // ----------------------------------------------------
-  // 2. Navegación
-  // ----------------------------------------------------
-
-  void _navegarACrearRubrica(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const CrearRubricaScreen(),
+  void _mostrarOpcionesCentrales(Map<String, dynamic> rubrica, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          rubrica['nombre'] ?? 'Opciones de Rúbrica',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Divider(),
+            // OPCIÓN EVALUAR: Según el error, AQUÍ NO VA nombreInicial
+            ListTile(
+              leading: const Icon(Icons.play_circle_fill, color: Colors.green),
+              title: const Text("Evaluar Estudiante"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EvaluarRubricaScreen(
+                      rubricaId: docId,
+                      nombreRubrica: rubrica['nombre'] ?? '',
+                    ),
+                  ),
+                );
+              },
+            ),
+            // OPCIÓN EDITAR: Según el error, AQUÍ SÍ ES OBLIGATORIO nombreInicial
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text("Editar Estructura"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditarRubricaScreen(
+                      rubricaId: docId,
+                      nombreInicial: rubrica['nombre'] ?? '', // Requerido por Editar
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text("Eliminar Rúbrica"),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarEliminacion(docId, rubrica['nombre']);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  void _confirmarEliminacion(String docId, String nombre) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("¿Eliminar rúbrica?"),
+        content: Text("Esta acción borrará '$nombre' permanentemente."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCELAR")),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final userId = FirebaseAuth.instance.currentUser?.uid;
+              await FirebaseFirestore.instance
+                  .collection('artifacts').doc(__app_id)
+                  .collection('users').doc(userId)
+                  .collection('rubricas').doc(docId).delete();
+            },
+            child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('artifacts').doc(__app_id)
+        .collection('users').doc(userId)
+        .collection('rubricas');
+
+    if (_fechaFiltro != null) {
+      DateTime inicio = DateTime(_fechaFiltro!.year, _fechaFiltro!.month, _fechaFiltro!.day);
+      DateTime fin = inicio.add(const Duration(days: 1));
+      query = query.where('fechaCreacion', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+          .where('fechaCreacion', isLessThan: Timestamp.fromDate(fin));
+    }
+
     return Scaffold(
-      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Mis Rúbricas'),
-        // El estilo viene del main.dart, pero añadimos las acciones:
+        title: const Text("Seleccionar Rúbrica"),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         actions: [
-          AuthHelper.logoutButton(context), // <--- 2. AGREGAR EL BOTÓN AQUÍ
+          if (_fechaFiltro != null)
+            IconButton(
+                icon: const Icon(Icons.filter_alt_off),
+                onPressed: () => setState(() => _fechaFiltro = null)
+            ),
+          IconButton(
+              icon: const Icon(Icons.calendar_month),
+              onPressed: () => _seleccionarFecha(context)
+          ),
+          AuthHelper.logoutButton(context),
         ],
       ),
-
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _fetchRubricasStream(),
+        stream: query.snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: primaryColor));
-          }
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final docs = snapshot.data!.docs;
 
-          if (snapshot.hasError) {
-            return Center(child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text('Error al cargar rúbricas: ${snapshot.error}', style: const TextStyle(color: errorColor)),
-            ));
-          }
+          if (docs.isEmpty) return const Center(child: Text("No se encontraron rúbricas."));
 
-          final rubricaDocs = snapshot.data?.docs ?? [];
-
-          if (rubricaDocs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.assessment_outlined, size: 80, color: primaryColor.withOpacity(0.5)),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Aún no has creado ninguna rúbrica.',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const Text(
-                      'Usa el botón "+" para empezar a crear la tuya.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          // Muestra la lista de rúbricas
           return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 80.0, top: 16.0),
-            itemCount: rubricaDocs.length,
+            padding: const EdgeInsets.all(12),
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              final rubricaData = rubricaDocs[index].data();
-              final rubricaId = rubricaDocs[index].id;
-              final nombre = rubricaData['nombre'] ?? 'Rúbrica sin nombre';
-              final fecha = (rubricaData['fechaCreacion'] as Timestamp?)?.toDate();
-              final fechaStr = fecha != null ? 'Creada: ${fecha.day}/${fecha.month}/${fecha.year}' : '';
-
+              final data = docs[index].data();
               return Card(
-                elevation: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 3,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 child: ListTile(
-                  leading: CircleAvatar(
+                  leading: const CircleAvatar(
                     backgroundColor: primaryColor,
-                    child: Text('${index + 1}', style: const TextStyle(color: Colors.white)),
+                    child: Icon(Icons.assignment, color: Colors.white, size: 20),
                   ),
-                  title: Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(fechaStr),
-                  trailing: const Icon(Icons.arrow_forward_ios, color: primaryColor),
-                  onTap: () {
-                    final Map<String, dynamic> fullRubricaData = {
-                      ...rubricaData,
-                      'docId': rubricaId,
-                    };
-
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => EvaluarRubricaScreen(rubrica: fullRubricaData),
-                      ),
-                    );
-                  },
+                  title: Text(data['nombre'] ?? 'Sin nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("Peso Total: ${data['peso_total'] ?? '100%'}"),
+                  onTap: () => _mostrarOpcionesCentrales(data, docs[index].id),
                 ),
               );
             },

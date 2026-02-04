@@ -19,7 +19,7 @@ dependencies:
   # Dependencias de Firebase actualizadas a versiones compatibles y estables
   # dentro de la familia 4.x.x (para auth/firestore) y 2.x.x (para core).
   firebase_core: ^2.25.0
-  firebase_auth: ^4.20.0  # Actualizado para mejor estabilidad y compatibilidad con sus dependencias web.
+  firebase_auth: 4.16.0  # Actualizado para mejor estabilidad y compatibilidad con sus dependencias web.
   cloud_firestore: ^4.17.0 # Actualizado para alinearse con la última versión 4.x.x/2.x.x.
   crypto: ^3.0.3
   # La siguiente línea añade la fuente de Cupertino Icons a tu aplicación.
@@ -30,6 +30,14 @@ dependencies:
     sdk: flutter
   image_picker: ^1.0.7
   firebase_storage: ^11.6.0
+  intl: ^0.20.2
+  pdf: ^3.11.3
+  printing: ^5.13.1
+  path_provider: ^2.1.5
+  fl_chart: ^0.70.0
+  share_plus: 10.0.0
+  url_launcher: ^6.2.5
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:

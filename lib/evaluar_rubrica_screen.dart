@@ -1,417 +1,238 @@
-// evaluar_rubrica_screen.dart (Versión con Captura de Columnas Dinámicas)
 import 'package:flutter/material.dart';
-import 'dart:math';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'auth_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as excel_lib;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
+import 'auth_helper.dart';
+import 'ejecutar_evaluacion_screen.dart';
 
 class EvaluarRubricaScreen extends StatefulWidget {
-  final Map<String, dynamic> rubrica;
+  final String rubricaId;
+  final String nombreRubrica;
 
-  const EvaluarRubricaScreen({super.key, required this.rubrica});
+  const EvaluarRubricaScreen({
+    super.key,
+    required this.rubricaId,
+    required this.nombreRubrica,
+  });
 
   @override
   State<EvaluarRubricaScreen> createState() => _EvaluarRubricaScreenState();
 }
 
 class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
-  List<String> _estudiantes = [''];
+  final String __app_id = 'rubrica_evaluator';
+  final Color headerColor = const Color(0xFF283593);
+  final Color primaryColor = const Color(0xFF00796B);
+
+  List<String> _estudiantesLista = [];
   String? _estudianteSeleccionado;
-  final Map<String, double> _evaluacionValores = {};
-  double _notaCalculada = 0.0;
-  bool _isSaving = false;
-  bool _isLoadingExcel = false;
+  Map<String, dynamic>? _rubricaData;
+  bool _cargando = true;
 
   @override
   void initState() {
     super.initState();
-    _estudianteSeleccionado = _estudiantes.first;
-    _inicializarEvaluacion();
-    _calcularNotaFinal();
+    _cargarDatosEstructura();
   }
 
-  // ==========================================================
-  // LÓGICA DE CARGA DE EXCEL CON CAPTURA DE COLUMNAS DINÁMICAS
-  // ==========================================================
-  Future<void> _cargarExcelAlumnos() async {
+  Future<void> _cargarDatosEstructura() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls'],
-      );
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final doc = await FirebaseFirestore.instance
+          .collection('artifacts/$__app_id/users/$userId/rubricas')
+          .doc(widget.rubricaId)
+          .get();
 
-      if (result != null) {
-        setState(() => _isLoadingExcel = true);
+      if (doc.exists) {
+        setState(() {
+          _rubricaData = doc.data();
+          _cargando = false;
+        });
+      }
+    } catch (e) {
+      _mostrarMensaje("Error al conectar con la base de datos.");
+    }
+  }
 
-        var bytes;
-        if (kIsWeb) {
-          bytes = result.files.first.bytes;
-        } else {
-          bytes = File(result.files.first.path!).readAsBytesSync();
-        }
+  Future<void> _importarExcel() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xlsx', 'xls'],
+      withData: true,
+    );
 
-        var excel = excel_lib.Excel.decodeBytes(bytes!);
-        List<String> listaTemporal = [];
+    if (result != null) {
+      setState(() => _cargando = true);
+      try {
+        var bytes = result.files.single.bytes ?? File(result.files.single.path!).readAsBytesSync();
+        var excel = excel_lib.Excel.decodeBytes(bytes);
+        List<String> tempLista = [];
 
         for (var table in excel.tables.keys) {
-          var rows = excel.tables[table]!.rows;
-          if (rows.isEmpty) continue;
+          var sheet = excel.tables[table];
+          if (sheet == null || sheet.maxRows < 2) continue;
 
-          // 1. Identificar índices clave y mapear el resto
           int idxNombre = -1, idxApellido = -1, idxDni = -1;
-          Map<int, String> otrasColumnas = {}; // Índice -> Nombre de columna
+          var headerRow = sheet.rows.first;
 
-          var firstRow = rows[0];
+          // Mapeo preciso de columnas
+          for (int i = 0; i < headerRow.length; i++) {
+            String val = headerRow[i]?.value.toString().toLowerCase().trim() ?? "";
 
-          for (int i = 0; i < firstRow.length; i++) {
-            String header = firstRow[i]?.value.toString().trim() ?? "";
-            String headerLower = header.toLowerCase();
+            // Priorizamos coincidencias exactas para evitar que DNI tome el Apellido
+            if (val == "nombre") idxNombre = i;
+            else if (val == "apellido") idxApellido = i;
+            else if (val == "dni" || val == "documento" || val == "nro documento") idxDni = i;
 
-            if (headerLower.contains("nombre")) {
-              idxNombre = i;
-            } else if (headerLower.contains("apellido")) {
-              idxApellido = i;
-            } else if (headerLower.contains("dni") || headerLower.contains("documento")) {
-              idxDni = i;
-            } else if (header.isNotEmpty) {
-              // Guardamos cualquier otra columna que tenga nombre
-              otrasColumnas[i] = header.toUpperCase();
-            }
+            // Búsqueda flexible si aún no se encontraron
+            if (idxNombre == -1 && val.contains("nombre")) idxNombre = i;
+            if (idxApellido == -1 && val.contains("apellido")) idxApellido = i;
+            if (idxDni == -1 && (val.contains("dni") || val.contains("doc"))) idxDni = i;
           }
 
-          // Fallback si no hay encabezados claros
-          if (idxNombre == -1) idxNombre = 0;
-          if (idxApellido == -1) idxApellido = 1;
-          if (idxDni == -1) idxDni = 2;
+          if (idxNombre == -1 || idxApellido == -1 || idxDni == -1) {
+            _mostrarMensaje("Asegúrese de que el Excel tenga las columnas: NOMBRE, APELLIDO y DNI.");
+            setState(() => _cargando = false);
+            return;
+          }
 
-          // 2. Procesar datos
-          for (int i = 1; i < rows.length; i++) {
-            var row = rows[i];
-            if (row.isEmpty) continue;
+          for (int i = 1; i < sheet.maxRows; i++) {
+            var row = sheet.rows[i];
 
-            String nombre = idxNombre < row.length ? (row[idxNombre]?.value.toString().trim() ?? "") : "";
-            String apellido = idxApellido < row.length ? (row[idxApellido]?.value.toString().trim() ?? "") : "";
-            String dni = idxDni < row.length ? (row[idxDni]?.value.toString().trim() ?? "") : "";
+            // Obtener valores de las celdas
+            String nombre = row[idxNombre]?.value?.toString().toUpperCase().trim() ?? "";
+            String apellido = row[idxApellido]?.value?.toString().toUpperCase().trim() ?? "";
+            String dni = row[idxDni]?.value?.toString().trim() ?? "S/D";
 
-            if (nombre.isNotEmpty) {
-              // Construir base: NOMBRE APELLIDO (DNI)
-              String infoEstudiante = "${nombre.toUpperCase()} ${apellido.toUpperCase()} ($dni)";
-
-              // Añadir dinámicamente el resto de las columnas encontradas
-              otrasColumnas.forEach((index, nombreColumna) {
-                if (index < row.length && row[index] != null) {
-                  String valorExtra = row[index]!.value.toString().trim();
-                  if (valorExtra.isNotEmpty && valorExtra != "null") {
-                    infoEstudiante += " | $nombreColumna: $valorExtra";
-                  }
-                }
-              });
-
-              listaTemporal.add(infoEstudiante);
+            if (nombre.isNotEmpty && apellido.isNotEmpty) {
+              tempLista.add("$nombre $apellido ($dni)");
             }
           }
-          if (listaTemporal.isNotEmpty) break;
         }
 
         setState(() {
-          // Ordenamos alfabéticamente para que sea profesional
-          listaTemporal.sort();
-          _estudiantes = listaTemporal;
-          _estudianteSeleccionado = _estudiantes.isNotEmpty ? _estudiantes.first : null;
-          _isLoadingExcel = false;
+          _estudiantesLista = tempLista;
+          _estudianteSeleccionado = _estudiantesLista.isNotEmpty ? _estudiantesLista.first : null;
+          _cargando = false;
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('DATOS CARGADOS CON COLUMNAS DINÁMICAS')),
-        );
-      }
-    } catch (e) {
-      setState(() => _isLoadingExcel = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  void _inicializarEvaluacion() {
-    _evaluacionValores.clear();
-    for (var criterio in (widget.rubrica['criterios'] as List? ?? [])) {
-      for (var descriptor in (criterio['descriptores'] as List? ?? [])) {
-        for (var analitico in (descriptor['analiticos'] as List? ?? [])) {
-          final String key = '${criterio['nombre']}_${descriptor['contexto']}_${analitico['descripcion']}';
-          _evaluacionValores[key] = 0.0;
-        }
+      } catch (e) {
+        _mostrarMensaje("Error al procesar el archivo Excel.");
+        setState(() => _cargando = false);
       }
     }
   }
 
-  void _onGradoPertenenciaChanged(String key, double newValue) {
-    setState(() {
-      _evaluacionValores[key] = newValue;
-      _calcularNotaFinal();
-    });
-  }
-
-  void _onEstudianteChanged(String? newValue) {
-    setState(() {
-      _estudianteSeleccionado = newValue;
-      _inicializarEvaluacion();
-      _calcularNotaFinal();
-    });
-  }
-
-  double _calcularValorDescriptorCompensatorio(List<double> gradosAsignados, Map<String, dynamic>? operador) {
-    if (gradosAsignados.isEmpty) return 0.0;
-    if (gradosAsignados.length == 1) return gradosAsignados.first;
-
-    if (operador != null && operador['nombre'] == 'Media Aritmética') {
-      final double suma = gradosAsignados.reduce((a, b) => a + b);
-      return suma / gradosAsignados.length;
-    }
-
-    return gradosAsignados.first;
-  }
-
-  void _calcularNotaFinal() {
-    double notaFinal = 0.0;
-    final List criterios = widget.rubrica['criterios'] as List? ?? [];
-
-    for (var criterio in criterios) {
-      final double pesoCriterio = criterio['peso'] as double? ?? 0.0;
-      final List descriptores = criterio['descriptores'] as List? ?? [];
-      double valorCriterio = 0.0;
-
-      for (var descriptor in descriptores) {
-        final double pesoDescriptor = descriptor['pesoDescriptor'] as double? ?? 0.0;
-        final List analiticos = descriptor['analiticos'] as List? ?? [];
-        final Map<String, dynamic>? operador = descriptor['operador'] as Map<String, dynamic>?;
-
-        List<double> gradosAsignados = [];
-        for (var analitico in analiticos) {
-          final String analiticoDesc = analitico['descripcion'];
-          final String analiticoKey = '${criterio['nombre']}_${descriptor['contexto']}_$analiticoDesc';
-          gradosAsignados.add(_evaluacionValores[analiticoKey] ?? 0.0);
-        }
-
-        final double valorDescriptor = _calcularValorDescriptorCompensatorio(gradosAsignados, operador);
-        valorCriterio += (pesoDescriptor * valorDescriptor);
-      }
-      notaFinal += (pesoCriterio * valorCriterio);
-    }
-
-    setState(() {
-      _notaCalculada = notaFinal;
-    });
-  }
-
-  void _guardarEvaluacion() async {
-    if (_estudianteSeleccionado == null || _isSaving || _estudianteSeleccionado!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, cargue y seleccione un estudiante.')),
-      );
-      return;
-    }
-
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Usuario no autenticado.'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    setState(() => _isSaving = true);
-
-    final Map<String, double> valoresAnaliticosPonderados = _evaluacionValores.map(
-          (key, value) => MapEntry(key, double.parse(value.toStringAsFixed(2))),
-    );
-
-    final Map<String, dynamic> evaluacionData = {
-      'rubricaId': widget.rubrica['docId'],
-      'nombreRubrica': widget.rubrica['nombre'],
-      'estudiante': _estudianteSeleccionado,
-      'evaluadorId': userId,
-      'notaFinal': double.parse(_notaCalculada.toStringAsFixed(2)),
-      'fechaEvaluacion': FieldValue.serverTimestamp(),
-      'valoresAnaliticos': valoresAnaliticosPonderados,
-    };
-
-    try {
-      const String appId = 'rubrica_evaluator';
-      final String collectionPath = 'artifacts/$appId/users/$userId/evaluaciones';
-      await FirebaseFirestore.instance.collection(collectionPath).add(evaluacionData);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Guardado: ${_notaCalculada.toStringAsFixed(2)}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.of(context).pop();
-
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() => _isSaving = false);
-    }
+  void _mostrarMensaje(String m) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final List criterios = widget.rubrica['criterios'] as List? ?? [];
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Evaluar: ${widget.rubrica['nombre']}'),
+        backgroundColor: headerColor,
+        title: Text('Evaluar: ${widget.nombreRubrica}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [AuthHelper.logoutButton(context)],
       ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 900),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ElevatedButton.icon(
-                onPressed: _isLoadingExcel ? null : _cargarExcelAlumnos,
-                icon: _isLoadingExcel
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.upload_file),
-                label: const Text('CARGAR ALUMNOS DESDE EXCEL'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueGrey.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Carga de Estudiantes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
 
+            ElevatedButton.icon(
+              onPressed: _importarExcel,
+              icon: const Icon(Icons.upload_file, color: Colors.white),
+              label: const Text("IMPORTAR LISTA DESDE EXCEL", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            if (_estudiantesLista.isNotEmpty) ...[
+              const Text("Estudiante a evaluar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: _estudianteSeleccionado,
-                isExpanded: true, // Importante para textos largos de columnas extras
-                decoration: const InputDecoration(
-                  labelText: 'Evaluar a',
-                  border: OutlineInputBorder(),
-                  icon: Icon(Icons.person),
+                isExpanded: true,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  filled: true,
+                  fillColor: Colors.blue.withOpacity(0.05),
                 ),
-                items: _estudiantes.map((String est) {
-                  return DropdownMenuItem<String>(
-                    value: est,
-                    child: Text(est, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-                onChanged: _onEstudianteChanged,
+                items: _estudiantesLista.map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, style: const TextStyle(fontSize: 13))
+                )).toList(),
+                onChanged: (val) => setState(() => _estudianteSeleccionado = val),
               ),
-              const SizedBox(height: 16),
-
-              Text(
-                'NOTA FINAL CALCULADA: ${_notaCalculada.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-
-              Expanded(
-                child: ListView.builder(
-                  itemCount: criterios.length,
-                  itemBuilder: (context, criterioIndex) {
-                    final criterio = criterios[criterioIndex];
-                    final List descriptores = criterio['descriptores'] as List? ?? [];
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      elevation: 4,
-                      child: ExpansionTile(
-                        initiallyExpanded: true,
-                        title: Text(
-                            'Criterio ${criterioIndex + 1}: ${criterio['nombre']}',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade800)
-                        ),
-                        subtitle: Text('Peso Criterio: ${(criterio['peso'] as double? ?? 0.0).toStringAsFixed(2)}'),
-                        children: descriptores.map((descriptor) {
-                          final List analiticos = descriptor['analiticos'] as List? ?? [];
-                          final operador = descriptor['operador'];
-
-                          List<double> gradosAsignados = analiticos.map((a) {
-                            final String key = '${criterio['nombre']}_${descriptor['contexto']}_${a['descripcion']}';
-                            return _evaluacionValores[key] ?? 0.0;
-                          }).toList();
-                          final double valorDescriptorCalculado = _calcularValorDescriptorCompensatorio(gradosAsignados, operador);
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Descriptor:', style: const TextStyle(fontWeight: FontWeight.w600, fontStyle: FontStyle.italic)),
-                                Text('Peso: ${(descriptor['pesoDescriptor'] as double? ?? 0.0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                                Text('Contexto: ${descriptor['contexto']}', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-                                const Divider(height: 10),
-
-                                ...analiticos.asMap().entries.map((entry) {
-                                  final int analiticoIndex = entry.key;
-                                  final analitico = entry.value;
-                                  final String analiticoDesc = analitico['descripcion'];
-                                  final double objetivo = analitico['gradoPertenencia'] as double? ?? 0.0;
-                                  final String analiticoKey = '${criterio['nombre']}_${descriptor['contexto']}_$analiticoDesc';
-                                  final double currentValue = _evaluacionValores[analiticoKey] ?? 0.0;
-
-                                  return Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Analítico ${analiticoIndex + 1}: $analiticoDesc', style: const TextStyle(fontWeight: FontWeight.w500)),
-                                      Text('Objetivo: ${objetivo.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.indigo)),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Slider(
-                                              value: currentValue,
-                                              min: 0.0, max: 1.0, divisions: 10,
-                                              label: currentValue.toStringAsFixed(1),
-                                              onChanged: (double value) => _onGradoPertenenciaChanged(analiticoKey, double.parse(value.toStringAsFixed(1))),
-                                            ),
-                                          ),
-                                          Text(currentValue.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        ],
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                                Text('Valor Descriptor: ${valorDescriptorCalculado.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                                const SizedBox(height: 10),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _guardarEvaluacion,
-                icon: _isSaving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
-                label: Text(_isSaving ? 'Guardando...' : 'Guardar Evaluación y Finalizar'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  backgroundColor: Colors.teal.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
+            ] else ...[
+              _buildEmptyState(),
             ],
-          ),
+
+            const Spacer(),
+
+            ElevatedButton(
+              onPressed: (_estudianteSeleccionado == null || _rubricaData == null)
+                  ? null
+                  : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EjecutarEvaluacionScreen(
+                      rubricaId: widget.rubricaId,
+                      estudiante: _estudianteSeleccionado!,
+                      rubricaData: _rubricaData!,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: headerColor,
+                disabledBackgroundColor: Colors.grey.shade300,
+                minimumSize: const Size(double.infinity, 60),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              ),
+              child: const Text("COMENZAR EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300)
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey, size: 40),
+          SizedBox(height: 10),
+          Text("No hay lista cargada. Use el botón superior para importar un Excel.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey)
+          ),
+        ],
       ),
     );
   }

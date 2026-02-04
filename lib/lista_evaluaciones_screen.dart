@@ -1,4 +1,4 @@
-// lista_evaluaciones_screen.dart (Versión con Filtro por Fecha)
+// lista_evaluaciones_screen.dart (Versión Corregida con Filtro Funcional)
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,17 +23,16 @@ class ListaEvaluacionesScreen extends StatefulWidget {
 }
 
 class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
-  DateTime? _fechaFiltro; // Almacena la fecha seleccionada por el usuario
+  DateTime? _fechaFiltro;
 
   // ----------------------------------------------------
   // 1. Lógica de Carga de Evaluaciones (Firestore)
   // ----------------------------------------------------
   Stream<QuerySnapshot<Map<String, dynamic>>> _fetchEvaluacionesStream() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      return const Stream.empty();
-    }
+    if (userId == null) return const Stream.empty();
 
+    // Referencia corregida a tu estructura de Firebase
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('artifacts')
         .doc(__app_id)
@@ -41,17 +40,17 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
         .doc(userId)
         .collection('evaluaciones');
 
-    // FILTRO POR FECHA: Si hay una fecha seleccionada, filtramos el rango del día
+    // FILTRO POR FECHA: Usamos el campo 'fecha' que es el que genera serverTimestamp
     if (_fechaFiltro != null) {
       DateTime inicioDia = DateTime(_fechaFiltro!.year, _fechaFiltro!.month, _fechaFiltro!.day);
       DateTime finDia = inicioDia.add(const Duration(days: 1));
 
       query = query
-          .where('fechaEvaluacion', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDia))
-          .where('fechaEvaluacion', isLessThan: Timestamp.fromDate(finDia));
+          .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDia))
+          .where('fecha', isLessThan: Timestamp.fromDate(finDia));
     }
 
-    return query.orderBy('fechaEvaluacion', descending: true).snapshots();
+    return query.orderBy('fecha', descending: true).snapshots();
   }
 
   // ----------------------------------------------------
@@ -74,16 +73,12 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
     );
 
     if (seleccionado != null) {
-      setState(() {
-        _fechaFiltro = seleccionado;
-      });
+      setState(() => _fechaFiltro = seleccionado);
     }
   }
 
   void _limpiarFiltro() {
-    setState(() {
-      _fechaFiltro = null;
-    });
+    setState(() => _fechaFiltro = null);
   }
 
   // ----------------------------------------------------
@@ -92,13 +87,13 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   void _verDetalleEvaluacion(BuildContext context, Map<String, dynamic> evaluacion) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => DetalleEvaluacionScreen(evaluacionData: evaluacion),
+        builder: (context) => DetalleEvaluacionScreen(evaluacion: evaluacion),
       ),
     );
   }
 
   // ----------------------------------------------------
-  // 4. Widget Auxiliar de Estilo
+  // 4. Funciones de Estilo
   // ----------------------------------------------------
   Color _getNotaColor(double nota) {
     if (nota >= 0.9) return accentColor;
@@ -112,6 +107,8 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Evaluaciones'),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         actions: [
           AuthHelper.logoutButton(context),
         ],
@@ -164,35 +161,23 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error al cargar las evaluaciones: ${snapshot.error}',
-                      style: const TextStyle(color: errorColor),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
+                  return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: errorColor)));
                 }
 
-                final evaluacionesDocs = snapshot.data?.docs;
+                final evaluacionesDocs = snapshot.data?.docs ?? [];
 
-                if (evaluacionesDocs == null || evaluacionesDocs.isEmpty) {
+                if (evaluacionesDocs.isEmpty) {
                   return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.search_off, size: 64, color: Colors.grey),
-                          const SizedBox(height: 16),
-                          Text(
-                            _fechaFiltro == null
-                                ? 'Aún no hay evaluaciones guardadas.'
-                                : 'No hay evaluaciones para esta fecha.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 18, color: primaryColor),
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.search_off, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          _fechaFiltro == null ? 'No hay evaluaciones.' : 'No hay datos para esta fecha.',
+                          style: const TextStyle(fontSize: 18, color: primaryColor),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -204,45 +189,29 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                     final evaluacionDoc = evaluacionesDocs[index];
                     final evaluacionData = evaluacionDoc.data();
 
-                    final double notaFinal = evaluacionData['notaFinal'] as double? ?? 0.0;
+                    final double notaFinal = (evaluacionData['notaFinal'] ?? 0.0).toDouble();
                     final notaColor = _getNotaColor(notaFinal);
 
-                    final fecha = (evaluacionData['fechaEvaluacion'] as Timestamp?)?.toDate();
-                    final fechaStr = fecha != null
-                        ? '${fecha.day}/${fecha.month}/${fecha.year} ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}'
-                        : 'Fecha desconocida';
-
-                    final Map<String, dynamic> fullEvaluacionData = {
-                      ...evaluacionData,
-                      'docId': evaluacionDoc.id,
-                      'fecha': fechaStr,
-                    };
+                    // Usamos el campo 'fecha' de Firestore
+                    final Timestamp? timestamp = evaluacionData['fecha'] as Timestamp?;
+                    final DateTime? fecha = timestamp?.toDate();
+                    final String fechaStr = fecha != null
+                        ? '${fecha.day}/${fecha.month}/${fecha.year} ${fecha.hour}:${fecha.minute.toString().padLeft(2, '0')}'
+                        : 'Sin fecha';
 
                     return Card(
                       elevation: 4,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
                         leading: CircleAvatar(
-                          radius: 25,
                           backgroundColor: notaColor,
-                          child: Text(
-                            notaFinal.toStringAsFixed(2),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
-                          ),
+                          child: Text(notaFinal.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text(
-                          evaluacionData['estudiante'] ?? 'Estudiante desconocido',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        subtitle: Text(
-                          'Rúbrica: ${evaluacionData['nombreRubrica'] ?? 'Sin nombre'}\nFecha: $fechaStr',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                        isThreeLine: true,
-                        trailing: const Icon(Icons.chevron_right, color: primaryColor, size: 24),
-                        onTap: () => _verDetalleEvaluacion(context, fullEvaluacionData),
+                        title: Text(evaluacionData['estudiante'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Rúbrica: ${evaluacionData['nombreRubrica'] ?? 'S/N'}\n$fechaStr'),
+                        trailing: const Icon(Icons.chevron_right, color: primaryColor),
+                        onTap: () => _verDetalleEvaluacion(context, evaluacionData),
                       ),
                     );
                   },

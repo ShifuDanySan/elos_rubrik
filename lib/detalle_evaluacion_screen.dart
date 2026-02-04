@@ -1,172 +1,203 @@
-// detalle_evaluacion_screen.dart
 import 'package:flutter/material.dart';
-import 'auth_helper.dart';
+import 'package:intl/intl.dart';
+import 'pdf_service.dart';
 
 class DetalleEvaluacionScreen extends StatelessWidget {
-  final Map<String, dynamic> evaluacionData;
+  final Map<String, dynamic> evaluacion;
 
-  const DetalleEvaluacionScreen({
-    super.key,
-    required this.evaluacionData,
-  });
-
-  String get _appBarTitle {
-    return 'Detalle: ${evaluacionData['estudiante']}';
-  }
-
-  String get _notaFinalDisplay {
-    final nota = evaluacionData['notaFinal'] as double? ?? 0.0;
-    return nota.toStringAsFixed(2);
-  }
-
-  // Widget auxiliar para mostrar la información detallada de un Analítico
-  Widget _buildAnaliticoDetail({required String nombre, required double gradoAsignado}) {
-    // Definimos el color basado en si el grado asignado es cero o no
-    final Color color = gradoAsignado > 0.0 ? Colors.purple : Colors.red.shade700;
-
-    return Padding(
-      padding: const EdgeInsets.only(left: 16.0, top: 4.0),
-      child: Text(
-        '$nombre - Grado Asignado: ${gradoAsignado.toStringAsFixed(1)}',
-        style: TextStyle(color: color, fontSize: 14),
-      ),
-    );
-  }
-
-  // Lógica principal para construir la vista de los resultados
-  Widget _buildResultados(BuildContext context) {
-    final notaFinal = _notaFinalDisplay;
-    final Color primaryColor = Theme.of(context).colorScheme.primary;
-
-    return Center( // Centramos el contenido para mayor responsiveness en pantallas grandes
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 800), // Limita el ancho máximo
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Sección de resumen
-              Text(
-                'Rúbrica: ${evaluacionData['nombreRubrica']}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Fecha: ${evaluacionData['fecha']}',
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-
-              // Nota Final (Usando un Card vistoso)
-              Card(
-                color: primaryColor.withOpacity(0.05), // Fondo sutil
-                elevation: 4, // Usamos una elevación separada para este Card de resumen
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                          'Nota Final de Evaluación',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
-                      ),
-                      Text(
-                        notaFinal,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // TÍTULO CORREGIDO: "Detalle"
-              const Text(
-                'Detalle:', // Título corregido
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 60, 60, 60)),
-              ),
-              const SizedBox(height: 12),
-
-              // Simulación del Detalle del Criterio 1:
-              Card(
-                // Usa la configuración de CardTheme de main.dart (bordes redondeados, sombra)
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Encabezado del Criterio
-                      Text(
-                        'Criterio 1: Investigación',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700, fontSize: 16),
-                      ),
-                      const SizedBox(height: 4),
-                      Text('Peso Criterio: 0.50', style: TextStyle(color: Colors.grey.shade600)),
-                      const Divider(),
-
-                      // Descriptor
-                      Text(
-                        'Descriptor: Profundidad de las fuentes',
-                        style: const TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Analítico 1
-                      _buildAnaliticoDetail(
-                        nombre: 'Analítico 1: Fuentes académicas',
-                        gradoAsignado: 0.6,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // OPERADOR LÓGICO (Posición corregida: entre Analítico 1 y Analítico 2)
-                      Text(
-                        'Operador Lógico: Media Aritmética (AND)',
-                        style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Analítico 2
-                      _buildAnaliticoDetail(
-                        nombre: 'Analítico 2: Fuentes primarias',
-                        gradoAsignado: 0.0,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Resultado Compensatorio
-                      Text(
-                        'Resultado Compensatorio (Descriptor): 0.30',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Aquí se agregarían otros criterios de forma dinámica...
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  const DetalleEvaluacionScreen({super.key, required this.evaluacion});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(_appBarTitle),
+        title: Text("Detalle: ${evaluacion['estudiante']}"),
+        backgroundColor: const Color(0xFF1A237E),
+        foregroundColor: Colors.white,
         actions: [
-          AuthHelper.logoutButton(context), // <--- Añadir aquí
+          IconButton(
+            tooltip: "Exportar a PDF",
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () => PdfService.generarReporte(evaluacion),
+          ),
+          const SizedBox(width: 10),
         ],
-        // El estilo del AppBar ya viene del tema global en main.dart
       ),
-      body: _buildResultados(context),
+      body: _buildBody(context),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final List<dynamic> criterios = evaluacion['criterios'] ?? [];
+    String fechaFormateada = 'Sin fecha';
+
+    if (evaluacion['fecha'] != null) {
+      fechaFormateada = DateFormat('dd/MM/yyyy HH:mm').format(evaluacion['fecha'].toDate());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // CARD CALIFICACIÓN FINAL
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text("CALIFICACIÓN FINAL",
+                      style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 10),
+                  Text(
+                    "${evaluacion['notaFinal']}",
+                    style: const TextStyle(fontSize: 58, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(fechaFormateada, style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+          const Padding(
+            padding: EdgeInsets.only(left: 8.0),
+            child: Text("ANÁLISIS DE DESEMPEÑO POR CRITERIO",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+          ),
+          const SizedBox(height: 15),
+          ...criterios.asMap().entries.map((entry) {
+            int index = entry.key + 1;
+            var crit = entry.value;
+            final List<dynamic> descriptores = crit['descriptores'] ?? [];
+            double sumaBase = descriptores.fold(0.0, (prev, desc) => prev + (desc['resultado_descriptor'] ?? 0.0));
+            double puntajeCriterio = sumaBase.clamp(0.0, 1.0);
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 25),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  _buildCriterioHeader(index, crit['nombre'] ?? 'Criterio'),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStatusLegend(puntajeCriterio),
+                        const SizedBox(height: 20),
+                        ...descriptores.map((desc) => _buildDescriptorTile(desc)).toList(),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            "PUNTAJE CRITERIO $index: ${puntajeCriterio.toStringAsFixed(2)}",
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriterioHeader(int index, String nombre) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A237E).withOpacity(0.03),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 15,
+            backgroundColor: const Color(0xFF1A237E),
+            child: Text("$index", style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(nombre.toUpperCase(),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDescriptorTile(Map<String, dynamic> desc) {
+    final List<dynamic> analiticos = desc['analiticos'] ?? [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("${desc['contexto']}", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        ...analiticos.map((ana) => Padding(
+          padding: const EdgeInsets.only(left: 10, bottom: 4),
+          child: Text("• ${ana['nombre']}: ${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
+              style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        )).toList(),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(5)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Subtotal Descriptor:", style: TextStyle(fontSize: 13, color: Colors.grey)),
+              Text("${(desc['resultado_descriptor'] ?? 0.0).toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
+  Widget _buildStatusLegend(double valor) {
+    Color color;
+    String texto;
+    IconData icono;
+    if (valor >= 0.8) {
+      color = const Color(0xFF2E7D32);
+      texto = "El estudiante obtuvo un desempeño excelente";
+      icono = Icons.stars;
+    } else if (valor >= 0.4) {
+      color = const Color(0xFFEF6C00); // Naranja para buen desempeño
+      texto = "El estudiante obtuvo un buen desempeño";
+      icono = Icons.check_circle;
+    } else {
+      color = Colors.redAccent;
+      texto = "Alerta de desempeño para este criterio";
+      icono = Icons.warning_amber_rounded;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 18, color: color),
+          const SizedBox(width: 8),
+          Flexible(child: Text(texto, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13))),
+        ],
+      ),
     );
   }
 }
