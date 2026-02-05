@@ -6,7 +6,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'login_register_screen.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -64,24 +63,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // 1. FORZAR ACTUALIZACIÓN: Esto detecta si el usuario ya pulsó el link de confirmación
+        // 1. FORZAR ACTUALIZACIÓN: Detecta si el link de confirmación ya fue pulsado
         await user.reload();
         final userActualizado = FirebaseAuth.instance.currentUser;
+        final emailDeAuth = userActualizado?.email;
 
-        final doc = await FirebaseFirestore.instance.collection('usuarios').doc(userActualizado!.uid).get();
+        final doc = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(userActualizado!.uid)
+            .get();
 
         if (doc.exists) {
           final data = doc.data()!;
           String emailEnFirestore = data['email'] ?? '';
 
-          // 2. SINCRONIZACIÓN AUTOMÁTICA:
-          // Si el mail de Auth ya cambió por el link pero en Firestore sigue el viejo, actualizamos Firestore.
-          if (userActualizado.email != null && userActualizado.email != emailEnFirestore) {
-            await FirebaseFirestore.instance.collection('usuarios').doc(userActualizado.uid).update({
-              'email': userActualizado.email,
-            });
-            emailEnFirestore = userActualizado.email!;
-            debugPrint("Sincronización de Email completada en Firestore.");
+          // 2. SINCRONIZACIÓN AUTOMÁTICA AL VUELO:
+          // Si Auth ya cambió por el link pero Firestore tiene el viejo, corregimos la BD ahora mismo.
+          if (emailDeAuth != null && emailDeAuth != emailEnFirestore) {
+            await FirebaseFirestore.instance
+                .collection('usuarios')
+                .doc(userActualizado.uid)
+                .update({'email': emailDeAuth});
+
+            emailEnFirestore = emailDeAuth;
+            debugPrint("Firestore sincronizado con el nuevo email confirmado.");
           }
 
           setState(() {
@@ -100,7 +105,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } finally {
       // Regla: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _nombreFocus.requestFocus();
+        if (_nombreFocus.canRequestFocus) {
+          _nombreFocus.requestFocus();
+        }
       });
     }
   }
@@ -143,9 +150,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _isSaving = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Foto actualizada correctamente"), backgroundColor: Colors.green),
-      );
     } catch (e) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -161,7 +165,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool emailCambiado = false;
 
     try {
-      // Cambio de Email: Envía verificación pero no toca Firestore (se sincronizará al verificar)
+      // Cambio de Email: Envía verificación
       if (_emailController.text.trim() != _emailOriginal) {
         await user?.verifyBeforeUpdateEmail(_emailController.text.trim());
         emailCambiado = true;
@@ -201,215 +205,102 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text("Confirmación Pendiente"),
-        content: const Text("Se ha enviado un correo a la nueva dirección. El cambio en la base de datos se realizará automáticamente la próxima vez que abras esta pantalla después de confirmar el enlace."),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text("ENTENDIDO"),
+      builder: (context) {
+        final FocusNode botonFocus = FocusNode();
+        Future.delayed(Duration.zero, () => botonFocus.requestFocus());
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text("Confirmación Pendiente", textAlign: TextAlign.center),
+          content: const Text(
+            "Se ha enviado un correo de verificación. El cambio en la base de datos se hará automáticamente la próxima vez que entres aquí tras confirmar el enlace.",
+            textAlign: TextAlign.center,
           ),
-        ],
-      ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              focusNode: botonFocus,
+              onPressed: () {
+                Navigator.pop(context); // Cierra Dialog
+                Navigator.pop(context); // Vuelve atrás
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3949AB)),
+              child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF3949AB);
-    const Color accentColor = Color(0xFFF06292);
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Configuración de Perfil"),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          const FloatingShapesBackground(),
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20)],
+      appBar: AppBar(title: const Text("Perfil"), backgroundColor: primaryColor, foregroundColor: Colors.white),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildAvatar(primaryColor),
+              const SizedBox(height: 30),
+              _buildField(_nombreController, 'Nombre', Icons.person, _nombreFocus, _apellidoFocus),
+              _buildField(_apellidoController, 'Apellido', Icons.person, _apellidoFocus, _emailFocus),
+              _buildField(_emailController, 'Email', Icons.email, _emailFocus, _passFocus),
+              const Divider(),
+              _buildField(_passwordController, 'Nueva Contraseña', Icons.lock, _passFocus, _confirmPassFocus, isPass: true),
+              _buildField(_confirmPasswordController, 'Repetir Contraseña', Icons.lock, _confirmPassFocus, _botonGuardarFocus, isPass: true),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                focusNode: _botonGuardarFocus,
+                onPressed: _isSaving ? null : _onSave,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: primaryColor,
                 ),
-                padding: const EdgeInsets.all(30),
-                child: _buildForm(primaryColor, accentColor),
+                child: const Text("GUARDAR CAMBIOS", style: TextStyle(color: Colors.white)),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildForm(Color primaryColor, Color accentColor) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: primaryColor.withOpacity(0.5), width: 2),
-                  ),
-                  child: CircleAvatar(
-                    radius: 55,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage: (_photoUrl != null && _photoUrl!.isNotEmpty)
-                        ? NetworkImage(_photoUrl!)
-                        : null,
-                    child: (_photoUrl == null || _photoUrl!.isEmpty)
-                        ? Icon(Icons.person, size: 60, color: primaryColor.withOpacity(0.5))
-                        : null,
-                  ),
-                ),
-                Positioned(
-                  bottom: 5,
-                  right: 5,
-                  child: GestureDetector(
-                    onTap: _isSaving ? null : _cambiarFoto,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: accentColor,
-                      child: _isSaving
-                          ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.camera_alt, size: 18, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-
-          _buildField(
-            controller: _nombreController,
-            label: 'Nombre',
-            icon: Icons.person_outline,
-            focusNode: _nombreFocus,
-            nextFocus: _apellidoFocus,
-            validator: (v) => (v == null || v.isEmpty) ? 'Campo obligatorio' : null,
-          ),
-          _buildField(
-            controller: _apellidoController,
-            label: 'Apellido',
-            icon: Icons.person_outline,
-            focusNode: _apellidoFocus,
-            nextFocus: _emailFocus,
-            validator: (v) => (v == null || v.isEmpty) ? 'Campo obligatorio' : null,
-          ),
-          _buildField(
-            controller: _emailController,
-            label: 'Nuevo Email',
-            icon: Icons.email_outlined,
-            focusNode: _emailFocus,
-            nextFocus: _passFocus,
-            keyboardType: TextInputType.emailAddress,
-            validator: (v) => (v == null || !v.contains('@')) ? 'Email inválido' : null,
-          ),
-          _buildField(
-            controller: _dniController,
-            label: 'DNI (No editable)',
-            icon: Icons.badge_outlined,
-            enabled: false,
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 15),
-            child: Divider(),
-          ),
-
-          _buildField(
-            controller: _passwordController,
-            label: 'Nueva Contraseña',
-            icon: Icons.lock_outline,
-            isPassword: true,
-            focusNode: _passFocus,
-            nextFocus: _confirmPassFocus,
-            validator: (v) => (v != null && v.isNotEmpty && v.length < 6) ? 'Mínimo 6 caracteres' : null,
-          ),
-          _buildField(
-            controller: _confirmPasswordController,
-            label: 'Confirmar Contraseña',
-            icon: Icons.lock_open_outlined,
-            isPassword: true,
-            focusNode: _confirmPassFocus,
-            nextFocus: _botonGuardarFocus,
-            validator: (v) => (v != _passwordController.text) ? 'Las contraseñas no coinciden' : null,
-          ),
-
-          const SizedBox(height: 30),
-          ElevatedButton(
-            focusNode: _botonGuardarFocus,
-            onPressed: _isSaving ? null : _onSave,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: primaryColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: _isSaving
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('GUARDAR CAMBIOS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+  Widget _buildAvatar(Color color) {
+    return Center(
+      child: GestureDetector(
+        onTap: _cambiarFoto,
+        child: CircleAvatar(
+          radius: 50,
+          backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+          child: _photoUrl == null ? const Icon(Icons.camera_alt, size: 30) : null,
+        ),
       ),
     );
   }
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool isPassword = false,
-    bool enabled = true,
-    FocusNode? focusNode,
-    FocusNode? nextFocus,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
+  Widget _buildField(TextEditingController controller, String label, IconData icon, FocusNode node, FocusNode? next, {bool isPass = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0),
+      padding: const EdgeInsets.only(bottom: 15),
       child: TextFormField(
         controller: controller,
-        focusNode: focusNode,
-        enabled: enabled,
-        obscureText: isPassword && !_mostrarPassword,
-        keyboardType: keyboardType,
-        textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
-        onFieldSubmitted: (_) {
-          if (nextFocus != null) {
-            FocusScope.of(context).requestFocus(nextFocus);
-          }
-        },
+        focusNode: node,
+        obscureText: isPass && !_mostrarPassword,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: enabled ? const Color(0xFF3949AB) : Colors.grey),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          filled: !enabled,
-          fillColor: enabled ? Colors.white : Colors.grey[100],
-          suffixIcon: isPassword ? IconButton(
+          prefixIcon: Icon(icon),
+          border: const OutlineInputBorder(),
+          suffixIcon: isPass ? IconButton(
             icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off),
             onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
           ) : null,
         ),
-        validator: validator,
+        onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,
       ),
     );
   }
