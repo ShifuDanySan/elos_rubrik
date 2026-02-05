@@ -15,9 +15,8 @@ class ListaEvaluacionesScreen extends StatefulWidget {
 class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
-  String _filtroEstudiante = ""; // Estado para el buscador de alumnos
+  String _filtroEstudiante = "";
 
-  // FUNCIÓN PARA NORMALIZAR TEXTO (Ignora acentos y mayúsculas)
   String _normalizarTexto(String texto) {
     var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
     var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUaeiouAEIOUnN';
@@ -63,8 +62,8 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
+          // Cambio aplicado: Botón con leyenda 'Filtrar por Fecha'
+          TextButton.icon(
             onPressed: () async {
               final picked = await showDatePicker(
                 context: context,
@@ -74,6 +73,8 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
               );
               if (picked != null) setState(() => _fechaFiltro = picked);
             },
+            icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
+            label: const Text("Filtrar por Fecha", style: TextStyle(color: Colors.white, fontSize: 12)),
           ),
           if (_fechaFiltro != null)
             IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
@@ -82,11 +83,10 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
       ),
       body: Column(
         children: [
-          // --- BUSCADOR DE ESTUDIANTES ---
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
-              autofocus: true, // Se posiciona el cursor aquí al entrar
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: "Buscar estudiante...",
                 prefixIcon: const Icon(Icons.person_search, color: primaryColor),
@@ -112,7 +112,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
 
                 var docs = snapshot.data?.docs ?? [];
 
-                // --- 1. FILTRADO POR ESTUDIANTE (NORMALIZADO) ---
                 if (_filtroEstudiante.isNotEmpty) {
                   final busqueda = _normalizarTexto(_filtroEstudiante);
                   docs = docs.where((d) {
@@ -121,7 +120,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                   }).toList();
                 }
 
-                // --- 2. FILTRADO POR FECHA ---
                 if (_fechaFiltro != null) {
                   docs = docs.where((d) {
                     final timestamp = d.data()['fecha'] as Timestamp?;
@@ -131,7 +129,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                   }).toList();
                 }
 
-                // --- 3. ORDENAR POR FECHA (Más reciente primero) ---
                 docs.sort((a, b) {
                   final dateA = (a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
                   final dateB = (b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);

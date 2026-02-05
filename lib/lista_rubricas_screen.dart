@@ -99,12 +99,19 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
+          // Cambio aplicado: Botón con leyenda 'Filtrar por Fecha'
+          TextButton.icon(
             onPressed: () async {
-              final picked = await showDatePicker(context: context, initialDate: _fechaFiltro ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now());
+              final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _fechaFiltro ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now()
+              );
               if (picked != null) setState(() => _fechaFiltro = picked);
             },
+            icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
+            label: const Text("Filtrar por Fecha", style: TextStyle(color: Colors.white, fontSize: 12)),
           ),
           if (_fechaFiltro != null) IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
           AuthHelper.logoutButton(context),
@@ -115,7 +122,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
-              autofocus: true, // Se posiciona el cursor aquí al entrar
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: "Buscar rúbrica...",
                 prefixIcon: const Icon(Icons.search),
