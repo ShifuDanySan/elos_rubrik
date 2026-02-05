@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb; // Para detectar la Web
 import 'crear_rubrica_screen.dart';
 import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
-// import 'profile_edit_screen.dart'; // <--- ELIMINADO PARA CORREGIR ERROR
+import 'profile_edit_screen.dart'; // <--- REHABILITADO
 import 'dart:math' as math;
 import 'dart:math';
 import 'auth_helper.dart';
@@ -111,10 +111,10 @@ class _HomeScreenState extends State<HomeScreen> {
             message: 'Perfil',
             child: GestureDetector(
               onTap: () {
-                // CORRECCIÓN: En lugar de navegar a ProfileEditScreen, informamos al usuario
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Ajustes de perfil no disponibles.")),
-                );
+                // CAMBIO ÚNICO: Navegar a la pantalla de edición
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
+                ).then((_) => _cargarDatosUsuario());
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12.0),
