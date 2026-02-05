@@ -1,7 +1,11 @@
+// profile_edit_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'login_register_screen.dart'; // Asegúrate de que FloatingShapesBackground esté aquí
 
 class ProfileEditScreen extends StatefulWidget {
@@ -26,7 +30,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // FocusNodes para la navegación con Enter
+  // FocusNodes para navegación con Enter
   final FocusNode _nombreFocus = FocusNode();
   final FocusNode _apellidoFocus = FocusNode();
   final FocusNode _emailFocus = FocusNode();
@@ -48,7 +52,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _dniController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    // Dispose FocusNodes
     _nombreFocus.dispose();
     _apellidoFocus.dispose();
     _emailFocus.dispose();
@@ -78,7 +81,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (e) {
       debugPrint("Error al cargar perfil: $e");
     } finally {
-      // Regla de negocio: El cursor debe empezar en el primer campo
+      // Regla: El cursor empieza en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _nombreFocus.requestFocus();
       });
@@ -97,15 +100,40 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         source: ImageSource.gallery,
         maxWidth: 500,
         maxHeight: 500,
-        imageQuality: 85,
+        imageQuality: 70,
       );
-      if (image != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Imagen seleccionada. Implementa Firebase Storage para guardarla.")),
-        );
+
+      if (image == null) return;
+
+      setState(() => _isSaving = true);
+      final user = FirebaseAuth.instance.currentUser;
+      final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user!.uid}.jpg');
+
+      if (kIsWeb) {
+        await storageRef.putData(await image.readAsBytes());
+      } else {
+        await storageRef.putFile(File(image.path));
       }
+
+      final String downloadUrl = await storageRef.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({
+        'photoUrl': downloadUrl,
+      });
+
+      setState(() {
+        _photoUrl = downloadUrl;
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Foto actualizada correctamente"), backgroundColor: Colors.green),
+      );
     } catch (e) {
-      debugPrint("Error al seleccionar imagen: $e");
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al subir imagen: $e"), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -126,13 +154,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         'email': _emailController.text.trim(),
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado con éxito'), backgroundColor: Colors.green),
-      );
       Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -181,28 +206,39 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // SECCIÓN DE FOTO CON CONTORNO SIEMPRE VISIBLE
           Center(
             child: Stack(
+              alignment: Alignment.center,
               children: [
-                CircleAvatar(
-                  radius: 55,
-                  backgroundColor: primaryColor.withOpacity(0.1),
-                  backgroundImage: (_photoUrl != null && _photoUrl!.isNotEmpty)
-                      ? NetworkImage(_photoUrl!)
-                      : null,
-                  child: (_photoUrl == null || _photoUrl!.isEmpty)
-                      ? Icon(Icons.person, size: 60, color: primaryColor)
-                      : null,
+                Container(
+                  padding: const EdgeInsets.all(4), // Espacio para el contorno
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primaryColor.withOpacity(0.5), width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 55,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                        ? NetworkImage(_photoUrl!)
+                        : null,
+                    child: (_photoUrl == null || _photoUrl!.isEmpty)
+                        ? Icon(Icons.person, size: 60, color: primaryColor.withOpacity(0.5))
+                        : null,
+                  ),
                 ),
                 Positioned(
-                  bottom: 0,
-                  right: 0,
+                  bottom: 5,
+                  right: 5,
                   child: GestureDetector(
-                    onTap: _cambiarFoto,
+                    onTap: _isSaving ? null : _cambiarFoto,
                     child: CircleAvatar(
                       radius: 18,
                       backgroundColor: accentColor,
-                      child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                      child: _isSaving
+                          ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.camera_alt, size: 18, color: Colors.white),
                     ),
                   ),
                 ),
@@ -244,7 +280,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
 
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
+            padding: EdgeInsets.symmetric(vertical: 15),
             child: Divider(),
           ),
 
@@ -259,7 +295,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           _buildField(
             controller: _confirmPasswordController,
-            label: 'Confirmar Nueva Contraseña',
+            label: 'Confirmar Contraseña',
             icon: Icons.lock_open_outlined,
             isPassword: true,
             focusNode: _confirmPassFocus,
