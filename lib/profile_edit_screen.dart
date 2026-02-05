@@ -5,6 +5,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'auth_helper.dart';
+
+// Volvemos a tus constantes de estilo originales
+const Color _primaryColor = Color(0xFF3949AB);
+const Color _accentColor = Color(0xFF4FC3F7);
+const Color _backgroundColor = Color(0xFFE1BEE7);
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -64,13 +70,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         setState(() {
           _nombreController.text = data['nombre'] ?? '';
           _apellidoController.text = data['apellido'] ?? '';
-          _dniController.text = data['dni'] ?? 'No registrado';
+          _dniController.text = data['dni'] ?? '';
           _emailController.text = data['email'] ?? '';
           _photoUrl = data['photoUrl'];
           _isLoading = false;
         });
       }
     }
+    // El cursor empieza en el primer campo
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
     });
@@ -79,7 +86,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Future<void> _cambiarFoto() async {
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 500, maxHeight: 500, imageQuality: 70);
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 400, maxHeight: 400);
       if (image == null) return;
       setState(() => _isSaving = true);
       final user = FirebaseAuth.instance.currentUser;
@@ -100,21 +107,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     setState(() => _isSaving = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      // Actualizar Firestore (Nombre y Apellido)
       await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
       });
-      // Actualizar Password si se escribió algo
       if (_passwordController.text.isNotEmpty) {
         await user.updatePassword(_passwordController.text.trim());
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Perfil actualizado"), backgroundColor: Colors.green));
         Navigator.pop(context);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: Reingresa para cambiar contraseña")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al guardar cambios"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -122,91 +127,138 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF3949AB);
     return Scaffold(
-      appBar: AppBar(title: const Text("Editar Perfil"), backgroundColor: primaryColor, foregroundColor: Colors.white),
+      backgroundColor: _backgroundColor,
+      appBar: AppBar(
+        title: const Text("Editar Perfil", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        actions: [
+          AuthHelper.logoutButton(context),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              _buildAvatar(primaryColor),
-              const SizedBox(height: 30),
-              _buildField(_nombreController, "Nombre", Icons.person, _nombreFocus, _apellidoFocus),
-              _buildField(_apellidoController, "Apellido", Icons.person, _apellidoFocus, _passFocus),
-              _buildField(_dniController, "DNI", Icons.badge, null, null, enabled: false),
-              _buildField(_emailController, "Email", Icons.email, null, null, enabled: false),
-              const Divider(height: 40),
-              _buildField(_passwordController, "Nueva Contraseña", Icons.lock, _passFocus, _confirmPassFocus, isPass: true),
-              _buildField(_confirmPasswordController, "Repetir Contraseña", Icons.lock, _confirmPassFocus, _botonGuardarFocus, isPass: true),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                focusNode: _botonGuardarFocus,
-                onPressed: _isSaving ? null : _onSave,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(55),
-                  backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("GUARDAR CAMBIOS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatar(Color color) {
-    return Center(
-      child: GestureDetector(
-        onTap: _isSaving ? null : _cambiarFoto,
-        child: Stack(
-          alignment: Alignment.center,
+        // Compactamos para evitar el scroll innecesario
+        child: Column(
           children: [
-            CircleAvatar(
-              radius: 55,
-              backgroundColor: Colors.grey[200],
-              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-              child: _photoUrl == null ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
+            Container(
+              height: 90,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: _primaryColor,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
+              ),
+              child: Center(child: _buildAvatar()),
             ),
-            Positioned(
-              bottom: 0, right: 0,
-              child: CircleAvatar(
-                radius: 18, backgroundColor: color,
-                child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                width: 500, // Ancho igual a login_register_screen
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  elevation: 6,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 15, 24, 15),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
+                          _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
+                          _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
+                          _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
+                          const Divider(height: 25, thickness: 1),
+                          _buildField(_passwordController, "Nueva Contraseña", Icons.lock_outline, _passFocus, _confirmPassFocus, isPass: true),
+                          _buildField(_confirmPasswordController, "Confirmar Contraseña", Icons.lock_open_outlined, _confirmPassFocus, _botonGuardarFocus, isPass: true,
+                              validator: (v) => (v != _passwordController.text) ? 'No coinciden' : null),
+                          const SizedBox(height: 10),
+                          ElevatedButton(
+                            focusNode: _botonGuardarFocus,
+                            onPressed: _isSaving ? null : _onSave,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryColor,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(55),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text("GUARDAR CAMBIOS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon, FocusNode? current, FocusNode? next, {bool enabled = true, bool isPass = false}) {
+  Widget _buildAvatar() {
+    return GestureDetector(
+      onTap: _isSaving ? null : _cambiarFoto,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: CircleAvatar(
+              radius: 38,
+              backgroundColor: Colors.white,
+              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+              child: _photoUrl == null ? const Icon(Icons.person, size: 40, color: _primaryColor) : null,
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: CircleAvatar(
+              radius: 13,
+              backgroundColor: _accentColor,
+              child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon, FocusNode? current, FocusNode? next, {bool enabled = true, bool isPass = false, String? Function(String?)? validator}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: ctrl,
         focusNode: current,
         readOnly: !enabled,
         obscureText: isPass && !_mostrarPassword,
+        style: const TextStyle(fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF3949AB)),
-          filled: !enabled,
-          fillColor: enabled ? null : Colors.grey[200],
-          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          prefixIcon: Icon(icon, color: _primaryColor.withOpacity(0.7), size: 22),
+          filled: true,
+          fillColor: enabled ? Colors.white : Colors.grey[100],
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           suffixIcon: isPass ? IconButton(
-            icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off),
+            icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off, size: 22),
             onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
           ) : null,
         ),
+        validator: validator,
         onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,
       ),
     );
