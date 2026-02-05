@@ -76,9 +76,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error al cargar: $e");
     } finally {
-      // REGLA: El cursor debe empezar en el primer campo
+      // Regla: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
       });
@@ -125,7 +125,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool emailCambiado = false;
 
     try {
-      // 1. Modificar Firestore inmediatamente con los nuevos datos
+      // 1. Modificar Firestore inmediatamente (mantiene la funcionalidad)
       await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
@@ -138,7 +138,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         emailCambiado = true;
       }
 
-      // 3. Si hay nueva password, actualizarla
+      // 3. Password
       if (_passwordController.text.isNotEmpty) {
         await user.updatePassword(_passwordController.text);
       }
@@ -148,7 +148,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (emailCambiado) {
         _mostrarAlertaEmailYSalir();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados con éxito')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados')));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -166,7 +166,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Confirmación Requerida", textAlign: TextAlign.center),
         content: const Text(
-          "Se ha enviado un enlace a tu nuevo correo.\n\nPor seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.",
+          "Se ha enviado un enlace a tu nuevo correo.\n\n"
+              "Por seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.\n\n"
+              "Si no lo encuentras, revisa tu carpeta de SPAM.",
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
@@ -175,11 +177,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                Navigator.of(context).pushNamedAndRemoveUntil('/login_register', (route) => false);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3949AB)),
-            child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3949AB),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+            ),
+            child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -191,7 +196,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     const Color primaryColor = Color(0xFF3949AB);
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Editar Perfil"),
+        title: const Text("Perfil"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -206,7 +211,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             children: [
               _buildAvatar(primaryColor),
               const SizedBox(height: 30),
-              // Formato idéntico a Login: bordes, iconos y foco inicial
               _buildField(_nombreController, 'Nombre', Icons.person, _nombreFocus, _apellidoFocus),
               _buildField(_apellidoController, 'Apellido', Icons.person, _apellidoFocus, _emailFocus),
               _buildField(_emailController, 'Email', Icons.email, _emailFocus, _passFocus),
@@ -237,13 +241,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     return Center(
       child: GestureDetector(
         onTap: _isSaving ? null : _cambiarFoto,
-        child: CircleAvatar(
-          radius: 55,
-          backgroundColor: Colors.grey[200], // Círculo visible si no hay foto
-          backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-          child: _photoUrl == null
-              ? Icon(Icons.camera_alt, size: 40, color: color.withOpacity(0.5))
-              : null,
+        child: Stack(
+          children: [
+            CircleAvatar(
+              radius: 55,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+              child: _photoUrl == null ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: color,
+                child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -259,7 +274,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: const Color(0xFF3949AB)),
-          border: const OutlineInputBorder(), // Mismo formato que login_register
+          border: const OutlineInputBorder(),
           suffixIcon: isPass ? IconButton(
             icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off),
             onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
