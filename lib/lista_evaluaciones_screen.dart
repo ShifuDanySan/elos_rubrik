@@ -1,49 +1,186 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'detalle_evaluacion_screen.dart';
-import 'auth_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
-class ListaEvaluacionesScreen extends StatefulWidget {
-  const ListaEvaluacionesScreen({super.key});
+class ProfileEditScreen extends StatefulWidget {
+  const ProfileEditScreen({super.key});
 
   @override
-  State<ListaEvaluacionesScreen> createState() => _ListaEvaluacionesScreenState();
+  State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
-class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
-  final String __app_id = 'rubrica_evaluator';
-  DateTime? _fechaFiltro;
-  String _filtroEstudiante = "";
-  static const Color accentColor = Color(0xFF00897B); // Verde Teal
+class _ProfileEditScreenState extends State<ProfileEditScreen> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _mostrarPassword = false;
+  String? _photoUrl;
+  String _emailOriginal = "";
 
-  String _normalizarTexto(String texto) {
-    var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
-    var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUaeiouAEIOUnN';
-    String salida = texto;
-    for (int i = 0; i < conAcentos.length; i++) {
-      salida = salida.replaceAll(conAcentos[i], sinAcentos[i]);
-    }
-    return salida.toLowerCase().trim();
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _apellidoController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+
+  final FocusNode _nombreFocus = FocusNode();
+  final FocusNode _apellidoFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _passFocus = FocusNode();
+  final FocusNode _confirmPassFocus = FocusNode();
+  final FocusNode _botonGuardarFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatosActuales();
   }
 
-  void _confirmarEliminacion(String docId, String estudiante) {
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _apellidoController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _nombreFocus.dispose();
+    _apellidoFocus.dispose();
+    _emailFocus.dispose();
+    _passFocus.dispose();
+    _confirmPassFocus.dispose();
+    _botonGuardarFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargarDatosActuales() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.reload();
+        final doc = await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          setState(() {
+            _nombreController.text = data['nombre'] ?? '';
+            _apellidoController.text = data['apellido'] ?? '';
+            _emailOriginal = data['email'] ?? '';
+            _emailController.text = _emailOriginal;
+            _photoUrl = data['photoUrl'];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
+      });
+    }
+  }
+
+  Future<void> _cambiarFoto() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 500, maxHeight: 500, imageQuality: 70);
+      if (image == null) return;
+      setState(() => _isSaving = true);
+      final user = FirebaseAuth.instance.currentUser;
+      final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user!.uid}.jpg');
+      if (kIsWeb) {
+        await storageRef.putData(await image.readAsBytes());
+      } else {
+        await storageRef.putFile(File(image.path));
+      }
+      final String downloadUrl = await storageRef.getDownloadURL();
+      await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({'photoUrl': downloadUrl});
+      setState(() { _photoUrl = downloadUrl; _isSaving = false; });
+    } catch (e) { setState(() => _isSaving = false); }
+  }
+
+  Future<void> _onSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    // Guardamos las referencias necesarias antes de que el usuario sea nulo
+    final auth = FirebaseAuth.instance;
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final String nuevoEmail = _emailController.text.trim();
+      final bool emailCambiado = nuevoEmail != _emailOriginal;
+
+      // 1. Actualización inmediata de Base de Datos
+      await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({
+        'nombre': _nombreController.text.trim(),
+        'apellido': _apellidoController.text.trim(),
+        'email': nuevoEmail,
+      });
+
+      // 2. Ejecutar cambios en Auth
+      if (emailCambiado) {
+        await user.verifyBeforeUpdateEmail(nuevoEmail);
+      }
+      if (_passwordController.text.isNotEmpty) {
+        await user.updatePassword(_passwordController.text.trim());
+      }
+
+      // 3. CIERRE DE SESIÓN RADICAL (Antes del diálogo para asegurar salida)
+      await auth.signOut();
+
+      if (!mounted) return;
+
+      // 4. Mostrar aviso final y forzar salida al login al cerrar el diálogo
+      if (emailCambiado) {
+        _mostrarAlertaFinal(context);
+      } else {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login_register', (route) => false);
+      }
+
+    } catch (e) {
+      debugPrint("Error en guardado: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: Reingresa para aplicar cambios sensibles.'))
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _mostrarAlertaFinal(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Eliminar Evaluación", style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text("¿Borrar la evaluación de $estudiante?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text("Confirmación Requerida", textAlign: TextAlign.center),
+        content: const Text(
+          "Se ha enviado un enlace a tu nuevo correo.\n\n"
+              "La sesión se ha cerrado por seguridad. Deberás confirmar el enlace para ingresar nuevamente.\n\n"
+              "Si no lo encuentras, revisa tu carpeta de SPAM.",
+          textAlign: TextAlign.center,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NO")),
-          TextButton(
-            onPressed: () async {
-              final userId = FirebaseAuth.instance.currentUser?.uid;
-              await FirebaseFirestore.instance.collection('artifacts/$__app_id/users/$userId/evaluaciones').doc(docId).delete();
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text("SÍ", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                // Ya tiene el signOut hecho, solo navegamos
+                Navigator.pushNamedAndRemoveUntil(context, '/login_register', (route) => false);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3949AB),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+              ),
+              child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
@@ -52,99 +189,94 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-
+    const Color primaryColor = Color(0xFF3949AB);
     return Scaffold(
-      backgroundColor: const Color(0xFFB2C2BF), // Fondo gris verdoso oscuro para contraste real
       appBar: AppBar(
-        title: const Text("Mis Evaluaciones", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: accentColor,
+        title: const Text("Editar Perfil"),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-            child: TextButton.icon(
-              onPressed: () async {
-                final picked = await showDatePicker(context: context, initialDate: _fechaFiltro ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now());
-                if (picked != null) setState(() => _fechaFiltro = picked);
-              },
-              icon: const Icon(Icons.calendar_today, color: Colors.white, size: 16),
-              label: const Text("Filtrar por Fecha", style: TextStyle(color: Colors.white, fontSize: 11)),
-            ),
-          ),
-          if (_fechaFiltro != null) IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
-          AuthHelper.logoutButton(context),
-        ],
+        centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(color: accentColor, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25))),
-            child: TextField(
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: "Buscar estudiante...",
-                prefixIcon: const Icon(Icons.person_search, color: accentColor),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _buildAvatar(primaryColor),
+              const SizedBox(height: 30),
+              _buildField(_nombreController, 'Nombre', Icons.person, _nombreFocus, _apellidoFocus),
+              _buildField(_apellidoController, 'Apellido', Icons.person, _apellidoFocus, _emailFocus),
+              _buildField(_emailController, 'Email', Icons.email, _emailFocus, _passFocus),
+              const Divider(height: 40),
+              _buildField(_passwordController, 'Nueva Contraseña', Icons.lock, _passFocus, _confirmPassFocus, isPass: true),
+              _buildField(_confirmPasswordController, 'Repetir Contraseña', Icons.lock, _confirmPassFocus, _botonGuardarFocus, isPass: true),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                focusNode: _botonGuardarFocus,
+                onPressed: _isSaving ? null : _onSave,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(55),
+                  backgroundColor: primaryColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("GUARDAR CAMBIOS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
-              onChanged: (val) => setState(() => _filtroEstudiante = val),
-            ),
+            ],
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('artifacts/$__app_id/users/$userId/evaluaciones').snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                var docs = snapshot.data?.docs ?? [];
-                if (_filtroEstudiante.isNotEmpty) {
-                  final busq = _normalizarTexto(_filtroEstudiante);
-                  docs = docs.where((d) => _normalizarTexto(d.data()['estudiante'] ?? "").contains(busq)).toList();
-                }
-                if (_fechaFiltro != null) {
-                  docs = docs.where((d) {
-                    final ts = d.data()['fecha'] as Timestamp?;
-                    if (ts == null) return false;
-                    final dt = ts.toDate();
-                    return dt.day == _fechaFiltro!.day && dt.month == _fechaFiltro!.month && dt.year == _fechaFiltro!.year;
-                  }).toList();
-                }
-                docs.sort((a, b) => ((b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000)).compareTo((a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000)));
+        ),
+      ),
+    );
+  }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data();
-                    final double nota = (data['notaFinal'] ?? 0.0).toDouble();
-                    return Card(
-                      elevation: 4, // Más elevación para resaltar sobre el fondo oscuro
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: nota >= 7 ? const Color(0xFF43A047) : Colors.orange[600],
-                          child: Text(nota.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(data['estudiante'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("${data['nombre']}"),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                          onPressed: () => _confirmarEliminacion(docs[index].id, data['estudiante'] ?? ''),
-                        ),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data))),
-                      ),
-                    );
-                  },
-                );
-              },
+  Widget _buildAvatar(Color color) {
+    return Center(
+      child: GestureDetector(
+        onTap: _isSaving ? null : _cambiarFoto,
+        child: Stack(
+          children: [
+            CircleAvatar(
+              radius: 55,
+              backgroundColor: Colors.grey[200],
+              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+              child: _photoUrl == null ? const Icon(Icons.person, size: 50, color: Colors.white) : null,
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: color,
+                child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController controller, String label, IconData icon, FocusNode node, FocusNode? next, {bool isPass = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: TextFormField(
+        controller: controller,
+        focusNode: node,
+        obscureText: isPass && !_mostrarPassword,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF3949AB)),
+          border: const OutlineInputBorder(),
+          suffixIcon: isPass ? IconButton(
+            icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off),
+            onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
+          ) : null,
+        ),
+        onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,
       ),
     );
   }
