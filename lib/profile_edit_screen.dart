@@ -6,7 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'login_register_screen.dart'; // Asegúrate de que FloatingShapesBackground esté aquí
+import 'login_register_screen.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -21,6 +21,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   bool _isSaving = false;
   bool _mostrarPassword = false;
   String? _photoUrl;
+  String _emailOriginal = ""; // Para comparar si el mail cambió
 
   // Controllers
   final TextEditingController _nombreController = TextEditingController();
@@ -71,7 +72,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           setState(() {
             _nombreController.text = data['nombre'] ?? '';
             _apellidoController.text = data['apellido'] ?? '';
-            _emailController.text = data['email'] ?? '';
+            _emailOriginal = data['email'] ?? ''; // Guardamos el original
+            _emailController.text = _emailOriginal;
             _photoUrl = data['photoUrl'];
             _dniController.text = _formatearDni(data['dni'] ?? '');
             _isLoading = false;
@@ -81,7 +83,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (e) {
       debugPrint("Error al cargar perfil: $e");
     } finally {
-      // Regla: El cursor empieza en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _nombreFocus.requestFocus();
       });
@@ -127,13 +128,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Foto actualizada correctamente"), backgroundColor: Colors.green),
+        const SnackBar(content: Text("Foto actualizada"), backgroundColor: Colors.green),
       );
     } catch (e) {
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error al subir imagen: $e"), backgroundColor: Colors.red),
-      );
     }
   }
 
@@ -141,20 +139,42 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     final user = FirebaseAuth.instance.currentUser;
+    bool emailCambiado = false;
+
     try {
-      if (_emailController.text.trim() != user?.email) {
+      // 1. Lógica de Cambio de Email con Verificación Obligatoria
+      if (_emailController.text.trim() != _emailOriginal) {
+        // Envía el correo de verificación al NUEVO email.
+        // El email en Firebase Auth NO cambia hasta que el usuario verifique.
         await user?.verifyBeforeUpdateEmail(_emailController.text.trim());
+        emailCambiado = true;
       }
+
+      // 2. Cambio de Password (si se escribió algo)
       if (_passwordController.text.isNotEmpty) {
         await user?.updatePassword(_passwordController.text);
       }
+
+      // 3. Actualización en Firestore
+      // IMPORTANTE: NO actualizamos el campo 'email' en Firestore todavía.
+      // Solo actualizamos nombre y apellido. El mail se actualizará en Firestore
+      // la próxima vez que el usuario inicie sesión tras haber verificado.
       await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
-        'email': _emailController.text.trim(),
+        // Notar que omitimos el campo 'email' aquí para que no cambie sin verificar
       });
+
       if (!mounted) return;
-      Navigator.pop(context);
+
+      if (emailCambiado) {
+        _mostrarAlertaEmail();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Datos actualizados'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
@@ -162,6 +182,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  void _mostrarAlertaEmail() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Verificación enviada"),
+        content: const Text("Se ha enviado un correo de confirmación a tu nueva dirección. El cambio de email solo se hará efectivo cuando lo verifiques."),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Cierra diálogo
+              Navigator.pop(context); // Vuelve al Home
+            },
+            child: const Text("ENTENDIDO"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -206,13 +246,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // SECCIÓN DE FOTO CON CONTORNO SIEMPRE VISIBLE
           Center(
             child: Stack(
               alignment: Alignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(4), // Espacio para el contorno
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: primaryColor.withOpacity(0.5), width: 2),
@@ -265,7 +304,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
           _buildField(
             controller: _emailController,
-            label: 'Email',
+            label: 'Nuevo Email',
             icon: Icons.email_outlined,
             focusNode: _emailFocus,
             nextFocus: _passFocus,
