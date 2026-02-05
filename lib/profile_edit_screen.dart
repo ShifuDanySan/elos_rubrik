@@ -1,4 +1,3 @@
-// lib/screens/profile_edit_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -61,7 +60,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await user.reload(); //
+        await user.reload();
         final doc = await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
 
         if (doc.exists) {
@@ -79,7 +78,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (e) {
       debugPrint("Error: $e");
     } finally {
-      // Regla: El cursor debe empezar en el primer campo
+      // REGLA: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
       });
@@ -126,33 +125,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool emailCambiado = false;
 
     try {
-      if (_emailController.text.trim() != _emailOriginal) {
-        // Actualizar Firestore con la intención de cambio
-        await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
-          'email': _emailController.text.trim(),
-          'nombre': _nombreController.text.trim(),
-          'apellido': _apellidoController.text.trim(),
-        });
+      // 1. Modificar Firestore inmediatamente con los nuevos datos
+      await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
+        'nombre': _nombreController.text.trim(),
+        'apellido': _apellidoController.text.trim(),
+        'email': _emailController.text.trim(),
+      });
 
-        // Enviar link de confirmación
+      // 2. Si el mail cambió, enviar verificación
+      if (_emailController.text.trim() != _emailOriginal) {
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
         emailCambiado = true;
-      } else {
-        await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
-          'nombre': _nombreController.text.trim(),
-          'apellido': _apellidoController.text.trim(),
-        });
-        if (_passwordController.text.isNotEmpty) {
-          await user.updatePassword(_passwordController.text);
-        }
+      }
+
+      // 3. Si hay nueva password, actualizarla
+      if (_passwordController.text.isNotEmpty) {
+        await user.updatePassword(_passwordController.text);
       }
 
       if (!mounted) return;
 
       if (emailCambiado) {
-        _mostrarAlertaEmailYSalir(); // Aquí se activa la ventana central
+        _mostrarAlertaEmailYSalir();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Datos actualizados')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados con éxito')));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -170,22 +166,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Confirmación Requerida", textAlign: TextAlign.center),
         content: const Text(
-          "Se ha enviado un enlace a tu nuevo correo.\n\nPor seguridad, la sesión se cerrará. Deberás hacer click en el enlace que se envió para poder ingresar nuevamente.",
+          "Se ha enviado un enlace a tu nuevo correo.\n\nPor seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.",
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           ElevatedButton(
             onPressed: () async {
-              await FirebaseAuth.instance.signOut(); // Cierre de sesión
+              await FirebaseAuth.instance.signOut();
               if (mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3949AB),
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3949AB)),
             child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -213,6 +206,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             children: [
               _buildAvatar(primaryColor),
               const SizedBox(height: 30),
+              // Formato idéntico a Login: bordes, iconos y foco inicial
               _buildField(_nombreController, 'Nombre', Icons.person, _nombreFocus, _apellidoFocus),
               _buildField(_apellidoController, 'Apellido', Icons.person, _apellidoFocus, _emailFocus),
               _buildField(_emailController, 'Email', Icons.email, _emailFocus, _passFocus),
@@ -226,7 +220,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(55),
                   backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 child: _isSaving
                     ? const CircularProgressIndicator(color: Colors.white)
@@ -245,9 +239,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         onTap: _isSaving ? null : _cambiarFoto,
         child: CircleAvatar(
           radius: 55,
-          backgroundColor: Colors.grey[300],
+          backgroundColor: Colors.grey[200], // Círculo visible si no hay foto
           backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-          child: _photoUrl == null ? const Icon(Icons.camera_alt, size: 35, color: Colors.white) : null,
+          child: _photoUrl == null
+              ? Icon(Icons.camera_alt, size: 40, color: color.withOpacity(0.5))
+              : null,
         ),
       ),
     );
@@ -262,8 +258,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         obscureText: isPass && !_mostrarPassword,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon),
-          border: const OutlineInputBorder(),
+          prefixIcon: Icon(icon, color: const Color(0xFF3949AB)),
+          border: const OutlineInputBorder(), // Mismo formato que login_register
           suffixIcon: isPass ? IconButton(
             icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off),
             onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
