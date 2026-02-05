@@ -276,7 +276,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
           ) : null,
         ),
-        onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,
+        onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,//dcf
       ),
     );
   }
