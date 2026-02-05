@@ -1,54 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Importa las localizaciones de Flutter
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'auth_screen.dart'; // Mantiene la pantalla de autenticación como inicio
+// Importa tus opciones de Firebase. Asegúrate de que 'firebase_options.dart' exista.
 import 'firebase_options.dart';
-import 'profile_edit_screen.dart'; // Asegúrate de que este archivo existe
 
 void main() async {
+  // Asegura que los bindings de Flutter estén inicializados antes de usar await
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // ESCUCHADOR GLOBAL: Detecta el cambio de mail y actualiza la base de datos
-  FirebaseAuth.instance.userChanges().listen((User? user) async {
-    if (user != null) {
-      try {
-        await user.reload();
-        final updatedUser = FirebaseAuth.instance.currentUser;
-
-        if (updatedUser != null && updatedUser.email != null) {
-          final docRef = FirebaseFirestore.instance.collection('usuarios').doc(updatedUser.uid);
-
-          // Actualiza Firestore de forma radical
-          await docRef.update({'email': updatedUser.email});
-          debugPrint("SINCRO EXITOSA: ${updatedUser.email}");
-        }
-      } catch (e) {
-        // Si el token caduca (Error 400), cerramos sesión para limpiar el estado
-        debugPrint("Token expirado o error de sesión. Re-login necesario.");
-        await FirebaseAuth.instance.signOut();
-      }
-    }
-  });
+  try {
+    // Inicializa Firebase con las opciones de la plataforma actual
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    // Manejo de errores de inicialización de Firebase (puedes añadir logging aquí)
+    print('Error al inicializar Firebase: $e');
+  }
 
   runApp(const MyApp());
 }
 
-// ESTA ES LA CLASE QUE FALTABA
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Elos-Rubrik App',
+
+      // Elimina la cinta roja 'DEBUG'
       debugShowCheckedModeBanner: false,
-      title: 'Elos Rubrik',
+
+      // --- CONFIGURACIÓN DE TEMA VISTOSA (MD3) ---
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3949AB)),
-        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple, // Color base para el esquema
+          brightness: Brightness.light,
+          primary: Colors.indigo.shade700,
+          secondary: Colors.pinkAccent.shade100,
+          background: Colors.grey.shade50,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.indigo.shade700,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        // CORRECCIÓN AQUÍ: Usar CardThemeData en lugar de CardTheme
+        cardTheme: CardThemeData(
+          elevation: 5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+        ),
+        // Estilo de botones elevado (elevated button)
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.indigo,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            elevation: 8,
+          ),
+        ),
       ),
-      // Redirige a tu pantalla de perfil o login
-      home: const ProfileEditScreen(),
+
+      // --- CONFIGURACIÓN DE LOCALIZACIÓN (Para el DatePicker) ---
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('es', ''),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      locale: const Locale('es', 'ES'),
+      // -------------------------------------------------------------
+
+      home: const AuthScreen(),
     );
   }
 }
