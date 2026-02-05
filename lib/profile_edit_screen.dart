@@ -62,7 +62,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (user != null) {
         await user.reload();
         final doc = await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
-
         if (doc.exists) {
           final data = doc.data()!;
           setState(() {
@@ -87,57 +86,42 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Future<void> _cambiarFoto() async {
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 70,
-      );
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 500, maxHeight: 500, imageQuality: 70);
       if (image == null) return;
-
       setState(() => _isSaving = true);
       final user = FirebaseAuth.instance.currentUser;
       final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user!.uid}.jpg');
-
       if (kIsWeb) {
         await storageRef.putData(await image.readAsBytes());
       } else {
         await storageRef.putFile(File(image.path));
       }
-
       final String downloadUrl = await storageRef.getDownloadURL();
       await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({'photoUrl': downloadUrl});
-
-      setState(() {
-        _photoUrl = downloadUrl;
-        _isSaving = false;
-      });
-    } catch (e) {
-      setState(() => _isSaving = false);
-    }
+      setState(() { _photoUrl = downloadUrl; _isSaving = false; });
+    } catch (e) { setState(() => _isSaving = false); }
   }
 
   Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     final user = FirebaseAuth.instance.currentUser;
-    bool emailCambiado = false;
+    if (user == null) return;
 
     try {
-      // 1. Modificación inmediata de la base de datos
-      await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
+      final String nuevoEmail = _emailController.text.trim();
+      bool emailCambiado = nuevoEmail != _emailOriginal;
+
+      await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
-        'email': _emailController.text.trim(),
+        'email': nuevoEmail,
       });
 
-      // 2. Lógica de cambio de Email
-      if (_emailController.text.trim() != _emailOriginal) {
-        await user.verifyBeforeUpdateEmail(_emailController.text.trim());
-        emailCambiado = true;
+      if (emailCambiado) {
+        await user.verifyBeforeUpdateEmail(nuevoEmail);
       }
 
-      // 3. Password
       if (_passwordController.text.isNotEmpty) {
         await user.updatePassword(_passwordController.text);
       }
@@ -145,10 +129,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (!mounted) return;
 
       if (emailCambiado) {
-        // Bloqueamos la interfaz y mostramos la alerta central de cierre
         _mostrarAlertaEmailYSalir();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados con éxito')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados')));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -166,27 +149,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Confirmación Requerida", textAlign: TextAlign.center),
         content: const Text(
-          "Se ha enviado un enlace a tu nuevo correo.\n\n"
-              "Por seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.\n\n"
-              "Si no lo encuentras, revisa tu carpeta de SPAM.",
+          "Se ha enviado un enlace a tu nuevo correo.\n\nPor seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.\n\nSi no lo encuentras, revisa tu carpeta de SPAM.",
           textAlign: TextAlign.center,
         ),
-        actionsAlignment: MainAxisAlignment.center,
         actions: [
-          ElevatedButton(
-            onPressed: () async {
-              // FORZAR CIERRE Y REDIRECCIÓN
-              await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                // Navega al login y borra todo el historial de pantallas
-                Navigator.of(context).pushNamedAndRemoveUntil('/login_register', (route) => false);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3949AB),
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+          Center(
+            child: ElevatedButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  Navigator.pushNamedAndRemoveUntil(context, '/login_register', (route) => false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3949AB),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+              ),
+              child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            child: const Text("ENTENDIDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -244,7 +224,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       child: GestureDetector(
         onTap: _isSaving ? null : _cambiarFoto,
         child: Stack(
-          alignment: Alignment.center,
           children: [
             CircleAvatar(
               radius: 55,
