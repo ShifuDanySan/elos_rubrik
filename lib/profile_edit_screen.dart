@@ -21,9 +21,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   bool _isSaving = false;
   bool _mostrarPassword = false;
   String? _photoUrl;
-  String _emailOriginal = ""; // Para comparar si el mail cambió
+  String _emailOriginal = "";
 
-  // Controllers
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _apellidoController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -31,7 +30,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  // FocusNodes para navegación con Enter
   final FocusNode _nombreFocus = FocusNode();
   final FocusNode _apellidoFocus = FocusNode();
   final FocusNode _emailFocus = FocusNode();
@@ -66,13 +64,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final doc = await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
+        // 1. FORZAR ACTUALIZACIÓN: Esto detecta si el usuario ya pulsó el link de confirmación
+        await user.reload();
+        final userActualizado = FirebaseAuth.instance.currentUser;
+
+        final doc = await FirebaseFirestore.instance.collection('usuarios').doc(userActualizado!.uid).get();
+
         if (doc.exists) {
           final data = doc.data()!;
+          String emailEnFirestore = data['email'] ?? '';
+
+          // 2. SINCRONIZACIÓN AUTOMÁTICA:
+          // Si el mail de Auth ya cambió por el link pero en Firestore sigue el viejo, actualizamos Firestore.
+          if (userActualizado.email != null && userActualizado.email != emailEnFirestore) {
+            await FirebaseFirestore.instance.collection('usuarios').doc(userActualizado.uid).update({
+              'email': userActualizado.email,
+            });
+            emailEnFirestore = userActualizado.email!;
+            debugPrint("Sincronización de Email completada en Firestore.");
+          }
+
           setState(() {
             _nombreController.text = data['nombre'] ?? '';
             _apellidoController.text = data['apellido'] ?? '';
-            _emailOriginal = data['email'] ?? ''; // Guardamos el original
+            _emailOriginal = emailEnFirestore;
             _emailController.text = _emailOriginal;
             _photoUrl = data['photoUrl'];
             _dniController.text = _formatearDni(data['dni'] ?? '');
@@ -81,8 +96,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Error al cargar perfil: $e");
+      debugPrint("Error al sincronizar datos: $e");
     } finally {
+      // Regla: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _nombreFocus.requestFocus();
       });
@@ -128,10 +144,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Foto actualizada"), backgroundColor: Colors.green),
+        const SnackBar(content: Text("Foto actualizada correctamente"), backgroundColor: Colors.green),
       );
     } catch (e) {
       setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error al subir imagen: $e"), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -142,27 +161,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool emailCambiado = false;
 
     try {
-      // 1. Lógica de Cambio de Email con Verificación Obligatoria
+      // Cambio de Email: Envía verificación pero no toca Firestore (se sincronizará al verificar)
       if (_emailController.text.trim() != _emailOriginal) {
-        // Envía el correo de verificación al NUEVO email.
-        // El email en Firebase Auth NO cambia hasta que el usuario verifique.
         await user?.verifyBeforeUpdateEmail(_emailController.text.trim());
         emailCambiado = true;
       }
 
-      // 2. Cambio de Password (si se escribió algo)
+      // Cambio de Password
       if (_passwordController.text.isNotEmpty) {
         await user?.updatePassword(_passwordController.text);
       }
 
-      // 3. Actualización en Firestore
-      // IMPORTANTE: NO actualizamos el campo 'email' en Firestore todavía.
-      // Solo actualizamos nombre y apellido. El mail se actualizará en Firestore
-      // la próxima vez que el usuario inicie sesión tras haber verificado.
+      // Actualizamos Nombre y Apellido
       await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
-        // Notar que omitimos el campo 'email' aquí para que no cambie sin verificar
       });
 
       if (!mounted) return;
@@ -171,7 +184,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _mostrarAlertaEmail();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Datos actualizados'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Cambios guardados con éxito'), backgroundColor: Colors.green),
         );
         Navigator.pop(context);
       }
@@ -189,13 +202,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text("Verificación enviada"),
-        content: const Text("Se ha enviado un correo de confirmación a tu nueva dirección. El cambio de email solo se hará efectivo cuando lo verifiques."),
+        title: const Text("Confirmación Pendiente"),
+        content: const Text("Se ha enviado un correo a la nueva dirección. El cambio en la base de datos se realizará automáticamente la próxima vez que abras esta pantalla después de confirmar el enlace."),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Cierra diálogo
-              Navigator.pop(context); // Vuelve al Home
+              Navigator.pop(context);
+              Navigator.pop(context);
             },
             child: const Text("ENTENDIDO"),
           ),
