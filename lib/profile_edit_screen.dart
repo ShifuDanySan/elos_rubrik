@@ -76,9 +76,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         }
       }
     } catch (e) {
-      debugPrint("Error al cargar: $e");
+      debugPrint("Error: $e");
     } finally {
-      // Regla: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
       });
@@ -125,14 +124,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool emailCambiado = false;
 
     try {
-      // 1. Modificar Firestore inmediatamente (mantiene la funcionalidad)
+      // 1. Modificación inmediata de la base de datos
       await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
         'email': _emailController.text.trim(),
       });
 
-      // 2. Si el mail cambió, enviar verificación
+      // 2. Lógica de cambio de Email
       if (_emailController.text.trim() != _emailOriginal) {
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
         emailCambiado = true;
@@ -146,9 +145,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (!mounted) return;
 
       if (emailCambiado) {
+        // Bloqueamos la interfaz y mostramos la alerta central de cierre
         _mostrarAlertaEmailYSalir();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados con éxito')));
         Navigator.pop(context);
       }
     } catch (e) {
@@ -175,8 +175,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         actions: [
           ElevatedButton(
             onPressed: () async {
+              // FORZAR CIERRE Y REDIRECCIÓN
               await FirebaseAuth.instance.signOut();
               if (mounted) {
+                // Navega al login y borra todo el historial de pantallas
                 Navigator.of(context).pushNamedAndRemoveUntil('/login_register', (route) => false);
               }
             },
@@ -196,7 +198,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     const Color primaryColor = Color(0xFF3949AB);
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Perfil"),
+        title: const Text("Editar Perfil"),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -242,6 +244,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       child: GestureDetector(
         onTap: _isSaving ? null : _cambiarFoto,
         child: Stack(
+          alignment: Alignment.center,
           children: [
             CircleAvatar(
               radius: 55,
