@@ -77,6 +77,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     } catch (e) {
       debugPrint("Error: $e");
     } finally {
+      // Regla: El cursor debe empezar en el primer campo
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
       });
@@ -104,44 +105,45 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isSaving = true);
-    final user = FirebaseAuth.instance.currentUser;
+
+    final auth = FirebaseAuth.instance;
+    final user = auth.currentUser;
     if (user == null) return;
 
-    try {
-      final String nuevoEmail = _emailController.text.trim();
-      bool emailCambiado = nuevoEmail != _emailOriginal;
+    setState(() => _isSaving = true);
+    final bool emailCambiado = _emailController.text.trim() != _emailOriginal;
 
+    try {
+      // 1. Actualizar Firestore primero
       await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
-        'email': nuevoEmail,
+        'email': _emailController.text.trim(),
       });
 
+      // 2. Intentar procesos de Auth
       if (emailCambiado) {
-        await user.verifyBeforeUpdateEmail(nuevoEmail);
+        await user.verifyBeforeUpdateEmail(_emailController.text.trim());
       }
-
       if (_passwordController.text.isNotEmpty) {
-        await user.updatePassword(_passwordController.text);
-      }
-
-      if (!mounted) return;
-
-      if (emailCambiado) {
-        _mostrarAlertaEmailYSalir();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cambios guardados')));
-        Navigator.pop(context);
+        await user.updatePassword(_passwordController.text.trim());
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      debugPrint("Error en proceso: $e");
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      // ESTO ES LO RADICAL: Pase lo que pase arriba, cerramos sesión y salimos
+      if (emailCambiado) {
+        _mostrarAlertaFinal(context);
+      } else {
+        await auth.signOut();
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, '/login_register', (route) => false);
+        }
+      }
     }
   }
 
-  void _mostrarAlertaEmailYSalir() {
+  void _mostrarAlertaFinal(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -149,7 +151,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Confirmación Requerida", textAlign: TextAlign.center),
         content: const Text(
-          "Se ha enviado un enlace a tu nuevo correo.\n\nPor seguridad, la sesión se cerrará. Deberás confirmar el enlace para poder ingresar nuevamente.\n\nSi no lo encuentras, revisa tu carpeta de SPAM.",
+          "Se ha enviado un enlace a tu nuevo correo.\n\n"
+              "Por seguridad, la sesión se cerrará. Deberás confirmar el enlace para ingresar nuevamente.\n\n"
+              "Si no lo encuentras, revisa tu carpeta de SPAM.",
           textAlign: TextAlign.center,
         ),
         actions: [
