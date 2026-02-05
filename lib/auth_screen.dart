@@ -10,19 +10,34 @@ class AuthScreen extends StatelessWidget {
   final Color primaryColor = const Color(0xFF3949AB); // Índigo oscuro
   final Color accentColor = const Color(0xFF7986CB); // Índigo claro
 
-  // Widget para el estado de carga
+  // Widget para el estado de carga con el círculo resaltado
   Widget _buildLoadingScreen() {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5), // Un gris muy tenue para que el blanco resalte
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Indicador de carga estilizado
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-              strokeWidth: 5.0,
+            // Círculo blanco contenedor para resaltar el indicador
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                strokeWidth: 5.0,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             Text(
               'Verificando sesión...',
               style: TextStyle(
@@ -89,31 +104,21 @@ class AuthScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // StreamBuilder escucha los cambios en el estado de autenticación de Firebase.
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-
-        // 1. Manejo de Errores
         if (snapshot.hasError) {
           return _buildErrorScreen(snapshot.error!);
         }
 
-        // 2. Estado de carga: Muestra un indicador mientras Firebase verifica la sesión.
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildLoadingScreen();
         }
 
-        // 3. Usuario autenticado: Si snapshot.hasData (y el valor NO es null)
         final user = snapshot.data;
         if (user != null) {
-          // Si el usuario está logueado, muestra la pantalla de inicio (Home).
           return const HomeScreen();
-        }
-
-        // 4. Usuario NO autenticado: Si el valor es null (sesión cerrada o nunca iniciada)
-        else {
-          // Si no hay usuario logueado, muestra la pantalla de Login/Registro.
+        } else {
           return const LoginRegisterScreen();
         }
       },

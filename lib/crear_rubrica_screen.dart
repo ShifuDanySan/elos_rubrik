@@ -16,6 +16,9 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
   final String __app_id = 'rubrica_evaluator';
   bool _cargando = false;
 
+  final Color primaryColor = Colors.blue;
+  final Color actionButtonColor = const Color(0xFF2E7D32);
+
   Future<void> _guardarYContinuar() async {
     final nombre = _nombreController.text.trim();
     if (nombre.isEmpty) {
@@ -42,16 +45,6 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
       });
 
       if (mounted) {
-        // MENSAJE DE CONFIRMACIÓN SOLICITADO
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Rúbrica creada con éxito'),
-            backgroundColor: Color(0xFF4CAF50), // Verde para éxito
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        // Navegamos a la pantalla de edición
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -74,41 +67,93 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF00796B);
-
     return Scaffold(
+      backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        title: const Text('Nueva Rúbrica'),
+        title: const Text('Nueva Rúbrica', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [AuthHelper.logoutButton(context)],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              '¿Cómo se llamará esta rúbrica?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _nombreController,
-              autofocus: true, // El cursor empieza aquí
-              decoration: InputDecoration(
-                labelText: 'Nombre de la rúbrica',
-                hintText: 'Ej: Proyecto Final de Ciencias',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.edit_note, color: primaryColor),
+      body: Column(
+        children: [
+          // Tarjeta superior
+          Container(
+            padding: const EdgeInsets.all(25.0),
+            decoration: BoxDecoration(
+              color: primaryColor,
+              borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25)
               ),
-              onSubmitted: (_) => _guardarYContinuar(),
             ),
-            const SizedBox(height: 30),
-            ElevatedButton(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '¿Cómo se llamará esta rúbrica?',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _nombreController,
+                  autofocus: true, // El cursor empieza aquí
+                  decoration: InputDecoration(
+                    hintText: 'Ej: Proyecto Final de Ciencias',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide.none
+                    ),
+                    prefixIcon: Icon(Icons.edit_note, color: primaryColor),
+                  ),
+                  onSubmitted: (_) => _guardarYContinuar(),
+                ),
+              ],
+            ),
+          ),
+
+          // Área de imagen que destaca y ocupa el espacio central
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/images/unnamed.jpg',
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image, size: 100, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Botón fijo en la parte inferior
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+            child: ElevatedButton(
               onPressed: _cargando ? null : _guardarYContinuar,
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                backgroundColor: actionButtonColor,
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                elevation: 6,
               ),
               child: _cargando
                   ? const SizedBox(
@@ -116,10 +161,13 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                   width: 20,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
               )
-                  : const Text('CREAR Y CONFIGURAR', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  : const Text(
+                  'CREAR Y CONFIGURAR',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

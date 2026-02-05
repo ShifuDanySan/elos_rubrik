@@ -23,8 +23,8 @@ class EvaluarRubricaScreen extends StatefulWidget {
 
 class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
   final String __app_id = 'rubrica_evaluator';
-  final Color headerColor = const Color(0xFF283593);
-  final Color primaryColor = const Color(0xFF00796B);
+  // Colores unificados con tu sistema de evaluación
+  final Color accentColor = const Color(0xFF00897B);
 
   List<String> _estudiantesLista = [];
   String? _estudianteSeleccionado;
@@ -125,9 +125,11 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFB2C2BF), // Fondo gris verdoso para contraste
       appBar: AppBar(
-        backgroundColor: headerColor,
-        title: Text('Evaluar: ${widget.nombreRubrica}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+        backgroundColor: accentColor,
+        elevation: 0,
+        title: Text('Evaluar: ${widget.nombreRubrica}', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -136,46 +138,71 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Carga de Estudiantes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
+          : Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: accentColor,
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
+            ),
+            child: ElevatedButton.icon(
               onPressed: _importarExcel,
-              icon: const Icon(Icons.upload_file, color: Colors.white),
-              label: const Text("IMPORTAR LISTA DESDE EXCEL", style: TextStyle(color: Colors.white)),
+              icon: const Icon(Icons.upload_file, color: Color(0xFF00897B)),
+              label: const Text("IMPORTAR LISTA DESDE EXCEL", style: TextStyle(color: Color(0xFF00897B), fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                backgroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 30),
-            if (_estudiantesLista.isNotEmpty) ...[
-              const Text("Estudiante a evaluar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: _estudianteSeleccionado,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  filled: true,
-                  fillColor: Colors.blue.withOpacity(0.05),
-                ),
-                items: _estudiantesLista.map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e, style: const TextStyle(fontSize: 13))
-                )).toList(),
-                onChanged: (val) => setState(() => _estudianteSeleccionado = val),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_estudiantesLista.isNotEmpty) ...[
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Seleccionar Estudiante:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 15),
+                            DropdownButtonFormField<String>(
+                              value: _estudianteSeleccionado,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                filled: true,
+                                fillColor: Colors.grey.withOpacity(0.05),
+                              ),
+                              items: _estudiantesLista.map((e) => DropdownMenuItem(
+                                  value: e,
+                                  child: Text(e, style: const TextStyle(fontSize: 13))
+                              )).toList(),
+                              onChanged: (val) => setState(() => _estudianteSeleccionado = val),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    _buildEmptyState(),
+                  ],
+                ],
               ),
-            ] else ...[
-              _buildEmptyState(),
-            ],
-            const Spacer(),
-            ElevatedButton(
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: ElevatedButton(
               onPressed: (_estudianteSeleccionado == null || _rubricaData == null)
                   ? null
                   : () {
@@ -184,45 +211,49 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> {
                   MaterialPageRoute(
                     builder: (context) => EjecutarEvaluacionScreen(
                       rubricaId: widget.rubricaId,
-                      nombre: widget.nombreRubrica, // String
-                      estudiante: _estudianteSeleccionado!, // String corregido
-                      rubricaData: _rubricaData!, // Map definido
+                      nombre: widget.nombreRubrica,
+                      estudiante: _estudianteSeleccionado!,
+                      rubricaData: _rubricaData!,
                     ),
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: headerColor,
-                disabledBackgroundColor: Colors.grey.shade300,
+                backgroundColor: const Color(0xFF283593), // Color Indigo para el botón de acción
+                disabledBackgroundColor: Colors.grey.shade400,
                 minimumSize: const Size(double.infinity, 60),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                elevation: 4,
               ),
               child: const Text("COMENZAR EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade300)
-      ),
-      child: const Column(
-        children: [
-          Icon(Icons.info_outline, color: Colors.grey, size: 40),
-          SizedBox(height: 10),
-          Text("No hay lista cargada. Use el botón superior para importar un Excel.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey)
-          ),
-        ],
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(30),
+        child: const Column(
+          children: [
+            Icon(Icons.info_outline, color: Colors.grey, size: 50),
+            SizedBox(height: 15),
+            Text("No hay lista cargada.",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+            ),
+            SizedBox(height: 5),
+            Text("Usa el botón superior para importar un Excel.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey)
+            ),
+          ],
+        ),
       ),
     );
   }

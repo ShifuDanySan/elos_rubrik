@@ -7,14 +7,14 @@ class EjecutarEvaluacionScreen extends StatefulWidget {
   final Map<String, dynamic> rubricaData;
   final String estudiante;
   final String rubricaId;
-  final String nombre; // <-- Nuevo parámetro para recibir el nombre como String
+  final String nombre;
 
   const EjecutarEvaluacionScreen({
     super.key,
     required this.rubricaData,
     required this.estudiante,
     required this.rubricaId,
-    required this.nombre, // <-- Requerido
+    required this.nombre,
   });
 
   @override
@@ -23,6 +23,7 @@ class EjecutarEvaluacionScreen extends StatefulWidget {
 
 class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   Map<String, double> notasSliders = {};
+  final Color primaryDark = const Color(0xFF1A237E);
 
   @override
   void initState() {
@@ -126,7 +127,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
           .collection('artifacts/rubrica_evaluator/users/$userId/evaluaciones')
           .add({
         'estudiante': widget.estudiante,
-        'nombre': widget.nombre, // <-- Cambio clave: Guardamos el nombre pasado como String
+        'nombre': widget.nombre,
         'notaFinal': _calcularNotaFinal(),
         'fecha': FieldValue.serverTimestamp(),
         'criterios': estructuraAEnviar,
@@ -143,29 +144,39 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   Widget build(BuildContext context) {
     var criterios = widget.rubricaData['criterios'] as List? ?? [];
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFB0BEC5), // Fondo gris para resaltar tarjetas
       appBar: AppBar(
-        title: Text("Calificando a: ${widget.estudiante}"),
-        backgroundColor: const Color(0xFF1A237E),
+        title: Text("Calificando a: ${widget.estudiante}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: primaryDark,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [AuthHelper.logoutButton(context)],
       ),
       body: Column(
         children: [
+          // Cabecera redondeada estética
+          Container(
+            height: 20,
+            decoration: BoxDecoration(
+              color: primaryDark,
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
+            ),
+          ),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               itemCount: criterios.length,
               itemBuilder: (context, i) {
                 var crit = criterios[i];
                 var descriptores = crit['descriptores'] as List? ?? [];
                 return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 4, // Mayor sombra para contraste
+                  margin: const EdgeInsets.only(bottom: 20),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   child: ExpansionTile(
                     initiallyExpanded: true,
-                    title: Text(crit['nombre'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
+                    shape: const RoundedRectangleBorder(side: BorderSide.none),
+                    title: Text(crit['nombre'], style: TextStyle(fontWeight: FontWeight.bold, color: primaryDark)),
                     subtitle: Text("Peso Criterio: ${crit['peso']}"),
                     children: descriptores.asMap().entries.map((entry) {
                       int j = entry.key;
@@ -184,7 +195,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(ana['nombre'] ?? "Analítico"),
+                                  Text(ana['nombre'] ?? "Analítico", style: const TextStyle(fontWeight: FontWeight.w500)),
                                   Row(
                                     children: [
                                       Expanded(
@@ -194,7 +205,11 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                                           onChanged: (v) => setState(() => notasSliders["$i-$j-$k"] = v),
                                         ),
                                       ),
-                                      Text(_getNota(i, j, k).toStringAsFixed(2)),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
+                                        child: Text(_getNota(i, j, k).toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      ),
                                     ],
                                   ),
                                   Text("Grado (Objetivo): ${ana['grado']}", style: const TextStyle(fontSize: 11, color: Colors.blue)),
@@ -203,11 +218,15 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                               );
                             }).toList(),
                             if (desc['operador'] != null)
-                              Text("Operador: ${desc['operador']}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                              Text("Operador: ${desc['operador']}", style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
                             const SizedBox(height: 8),
-                            Text(
-                              "Valor Descriptor (Suma Ponderada): ${_calcularValorDescriptor(desc, i, j)}",
-                              style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                              child: Text(
+                                "Valor Descriptor (Suma Ponderada): ${_calcularValorDescriptor(desc, i, j)}",
+                                style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),
@@ -218,21 +237,28 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
               },
             ),
           ),
+          // Panel de Nota Final Estético
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))],
+            ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text("NOTA FINAL: ${_calcularNotaFinal()}", style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1A237E))),
+                Text("NOTA FINAL: ${_calcularNotaFinal()}", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryDark)),
                 const SizedBox(height: 15),
                 ElevatedButton(
                   onPressed: _guardarEvaluacion,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A237E),
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    backgroundColor: primaryDark,
+                    minimumSize: const Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 5,
                   ),
-                  child: const Text("GUARDAR EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text("GUARDAR EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ],
             ),

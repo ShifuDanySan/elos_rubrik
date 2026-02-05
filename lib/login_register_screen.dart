@@ -6,11 +6,115 @@ import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
+import 'package:video_player/video_player.dart';
 
 // Constantes de estilo
 const Color _primaryColor = Color(0xFF3949AB);
 const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFE1BEE7);
+
+// ===============================================
+// WIDGET AUXILIAR: Video Splash (Corrección de Ruta)
+// ===============================================
+
+class VideoSplashScreen extends StatefulWidget {
+  const VideoSplashScreen({super.key});
+
+  @override
+  State<VideoSplashScreen> createState() => _VideoSplashScreenState();
+}
+
+class _VideoSplashScreenState extends State<VideoSplashScreen> {
+  late VideoPlayerController _controller;
+  bool _initialized = false;
+
+  // Verificamos que la ruta sea assets/gif/ como en tu captura
+  final List<String> _videos = [
+    'assets/gif/astronauta_espacio.mp4',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _playRandomVideo();
+  }
+
+  void _playRandomVideo() {
+    final randomVideo = _videos[Random().nextInt(_videos.length)];
+
+    _controller = VideoPlayerController.asset(randomVideo)
+      ..initialize().then((_) {
+        // Mute para asegurar que Chrome/Web no bloquee el inicio
+        _controller.setVolume(0.0);
+        _controller.setLooping(false);
+        _controller.play();
+        if (mounted) {
+          setState(() {
+            _initialized = true;
+          });
+        }
+      }).catchError((error) {
+        print("Error cargando video: $error");
+        // Si falla el video, saltamos al Home para no trabar al usuario
+        _navigateToHome();
+      });
+
+    _controller.addListener(() {
+      if (_controller.value.position >= _controller.value.duration &&
+          _controller.value.duration != Duration.zero) {
+        _navigateToHome();
+      }
+    });
+  }
+
+  void _navigateToHome() {
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 1. Imagen de fondo (solo se ve mientras el video carga)
+          SizedBox.expand(
+            child: Image.asset(
+              'assets/images/unnamed.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          // 2. Video (solo aparece si se inicializó correctamente)
+          if (_initialized)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller.value.size.width,
+                  height: _controller.value.size.height,
+                  child: VideoPlayer(_controller),
+                ),
+              ),
+            ),
+          // 3. Indicador de carga sutil sobre la imagen
+          if (!_initialized)
+            const CircularProgressIndicator(color: Colors.white),
+        ],
+      ),
+    );
+  }
+}
 
 // ===============================================
 // WIDGET AUXILIAR: Fondo Animado Flotante
@@ -256,7 +360,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Error al enviar el correo.'), backgroundColor: Colors.red),
+                  const SnackBar(content: Text('Error al enviar el correo.')),
                 );
               }
             },
@@ -290,8 +394,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
     setState(() { _isLoading = true; });
 
-    // CORRECCIÓN: Forzar el cierre de sesión antes de intentar loguear.
-    // Esto garantiza que la app valide la contraseña contra el servidor y no use tokens viejos.
     await FirebaseAuth.instance.signOut();
 
     final dniLimpio = _dniController.text.replaceAll('.', '');
@@ -326,7 +428,10 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const HomeScreen()));
+      // NAVEGACIÓN AL VIDEO SPLASH
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const VideoSplashScreen()),
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.message}'), backgroundColor: Colors.red));

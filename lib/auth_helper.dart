@@ -29,12 +29,26 @@ class AuthHelper {
     }
   }
 
-  /// Botón minimalista para evitar errores de Overflow
+  /// Botón con círculo blanco resaltado para evitar errores de Overflow y mejorar visibilidad
   static Widget logoutButton(BuildContext context, {Color color = Colors.redAccent}) {
-    return IconButton(
-      icon: Icon(Icons.logout, color: color),
-      tooltip: 'Cerrar Sesión',
-      onPressed: () => logout(context),
+    return Container(
+      margin: const EdgeInsets.all(8), // Espacio para que no toque los bordes
+      decoration: BoxDecoration(
+        color: Colors.white, // Círculo blanco de fondo
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(Icons.logout, color: color, size: 20), // Icono ligeramente más pequeño para el círculo
+        tooltip: 'Cerrar Sesión',
+        onPressed: () => logout(context),
+      ),
     );
   }
 }

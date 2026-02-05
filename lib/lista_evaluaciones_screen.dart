@@ -16,6 +16,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
   String _filtroEstudiante = "";
+  static const Color accentColor = Color(0xFF00897B); // Verde Teal
 
   String _normalizarTexto(String texto) {
     var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
@@ -31,20 +32,18 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Eliminar Evaluación"),
-        content: Text("¿Estás seguro de que deseas eliminar la evaluación de $estudiante?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Eliminar Evaluación", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text("¿Borrar la evaluación de $estudiante?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCELAR")),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("NO")),
           TextButton(
             onPressed: () async {
               final userId = FirebaseAuth.instance.currentUser?.uid;
-              await FirebaseFirestore.instance
-                  .collection('artifacts/$__app_id/users/$userId/evaluaciones')
-                  .doc(docId)
-                  .delete();
+              await FirebaseFirestore.instance.collection('artifacts/$__app_id/users/$userId/evaluaciones').doc(docId).delete();
               if (mounted) Navigator.pop(context);
             },
-            child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
+            child: const Text("SÍ", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -54,120 +53,90 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    const Color primaryColor = Color(0xFF1A237E);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFB2C2BF), // Fondo gris verdoso oscuro para contraste real
       appBar: AppBar(
-        title: const Text("Mis Evaluaciones"),
-        backgroundColor: primaryColor,
+        title: const Text("Mis Evaluaciones", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: accentColor,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          // Cambio aplicado: Botón con leyenda 'Filtrar por Fecha'
-          TextButton.icon(
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _fechaFiltro ?? DateTime.now(),
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) setState(() => _fechaFiltro = picked);
-            },
-            icon: const Icon(Icons.calendar_today, color: Colors.white, size: 18),
-            label: const Text("Filtrar por Fecha", style: TextStyle(color: Colors.white, fontSize: 12)),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+            child: TextButton.icon(
+              onPressed: () async {
+                final picked = await showDatePicker(context: context, initialDate: _fechaFiltro ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime.now());
+                if (picked != null) setState(() => _fechaFiltro = picked);
+              },
+              icon: const Icon(Icons.calendar_today, color: Colors.white, size: 16),
+              label: const Text("Filtrar por Fecha", style: TextStyle(color: Colors.white, fontSize: 11)),
+            ),
           ),
-          if (_fechaFiltro != null)
-            IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
+          if (_fechaFiltro != null) IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _fechaFiltro = null)),
           AuthHelper.logoutButton(context),
         ],
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(color: accentColor, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25))),
             child: TextField(
               autofocus: true,
               decoration: InputDecoration(
                 hintText: "Buscar estudiante...",
-                prefixIcon: const Icon(Icons.person_search, color: primaryColor),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                prefixIcon: const Icon(Icons.person_search, color: accentColor),
                 filled: true,
                 fillColor: Colors.white,
-                suffixIcon: _filtroEstudiante.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _filtroEstudiante = ""))
-                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
               onChanged: (val) => setState(() => _filtroEstudiante = val),
             ),
           ),
-
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('artifacts/$__app_id/users/$userId/evaluaciones')
-                  .snapshots(),
+              stream: FirebaseFirestore.instance.collection('artifacts/$__app_id/users/$userId/evaluaciones').snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) return const Center(child: Text("Error al cargar evaluaciones"));
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 var docs = snapshot.data?.docs ?? [];
-
                 if (_filtroEstudiante.isNotEmpty) {
-                  final busqueda = _normalizarTexto(_filtroEstudiante);
-                  docs = docs.where((d) {
-                    final nombreEstudiante = _normalizarTexto(d.data()['estudiante'] ?? "");
-                    return nombreEstudiante.contains(busqueda);
-                  }).toList();
+                  final busq = _normalizarTexto(_filtroEstudiante);
+                  docs = docs.where((d) => _normalizarTexto(d.data()['estudiante'] ?? "").contains(busq)).toList();
                 }
-
                 if (_fechaFiltro != null) {
                   docs = docs.where((d) {
-                    final timestamp = d.data()['fecha'] as Timestamp?;
-                    if (timestamp == null) return false;
-                    final date = timestamp.toDate();
-                    return date.day == _fechaFiltro!.day && date.month == _fechaFiltro!.month && date.year == _fechaFiltro!.year;
+                    final ts = d.data()['fecha'] as Timestamp?;
+                    if (ts == null) return false;
+                    final dt = ts.toDate();
+                    return dt.day == _fechaFiltro!.day && dt.month == _fechaFiltro!.month && dt.year == _fechaFiltro!.year;
                   }).toList();
                 }
-
-                docs.sort((a, b) {
-                  final dateA = (a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
-                  final dateB = (b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
-                  return dateB.compareTo(dateA);
-                });
-
-                if (docs.isEmpty) return const Center(child: Text("No hay evaluaciones que coincidan."));
+                docs.sort((a, b) => ((b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000)).compareTo((a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000)));
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index].data();
                     final double nota = (data['notaFinal'] ?? 0.0).toDouble();
-                    final String estudiante = data['estudiante'] ?? 'N/A';
-                    final String id = docs[index].id;
-                    final timestamp = data['fecha'] as Timestamp?;
-
-                    final String fechaLabel = timestamp != null
-                        ? DateFormat('dd/MM/yyyy').format(timestamp.toDate())
-                        : "S/F";
-
                     return Card(
+                      elevation: 4, // Más elevación para resaltar sobre el fondo oscuro
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,
+                          backgroundColor: nota >= 7 ? const Color(0xFF43A047) : Colors.orange[600],
                           child: Text(nota.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
-                        title: Text(estudiante, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("${data['nombre']}\n$fechaLabel"),
-                        isThreeLine: true,
+                        title: Text(data['estudiante'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text("${data['nombre']}"),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                          onPressed: () => _confirmarEliminacion(id, estudiante),
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                          onPressed: () => _confirmarEliminacion(docs[index].id, data['estudiante'] ?? ''),
                         ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data)),
-                        ),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DetalleEvaluacionScreen(evaluacion: data))),
                       ),
                     );
                   },
