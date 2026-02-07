@@ -128,29 +128,21 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
     );
   }
 
-  // Lógica mejorada para aclarar cada condición faltante
   Future<void> _intentarFinalizar() async {
     List<String> errores = [];
-
-    // 1. Validar existencia de criterios
     if (listaCriteriosLocal.isEmpty) {
       errores.add("- Debes añadir al menos un criterio.");
     } else {
-      // 2. Validar suma de criterios
       double sumaCriterios = _calcularSumaPesos(listaCriteriosLocal);
       if (sumaCriterios < 0.99 || sumaCriterios > 1.01) {
         errores.add("- La suma de pesos de los criterios debe ser 1.00 (actual: $sumaCriterios).");
       }
-
-      // 3. Validar pesos individuales y descriptores por cada criterio
       for (var i = 0; i < listaCriteriosLocal.length; i++) {
         var crit = listaCriteriosLocal[i];
         String nombre = crit['nombre'].toString().isEmpty ? "Criterio ${i + 1}" : crit['nombre'];
-
         if ((double.tryParse(crit['peso'].toString()) ?? 0.0) <= 0) {
           errores.add("- '$nombre' no tiene un peso asignado.");
         }
-
         List descs = crit['descriptores'] ?? [];
         if (descs.isEmpty) {
           errores.add("- '$nombre' no tiene ningún descriptor/nivel.");
@@ -174,7 +166,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
           .collection('artifacts/$__app_id/users/$userId/rubricas')
           .doc(widget.rubricaId)
           .update({'criterios': listaCriteriosLocal});
-
       _mostrarConfirmacionFinal();
     } catch (e) {
       _mostrarAlertaErrores(["Error de conexión: $e"]);
@@ -254,7 +245,14 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
               TextField(controller: nombreCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre del criterio')),
               const SizedBox(height: 20),
               Text("Peso: ${peso.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-              Slider(value: peso, min: 0.0, max: 1.0, divisions: 100, onChanged: (v) => setDialogState(() => peso = v)),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  inactiveTrackColor: Colors.grey[400],
+                  activeTrackColor: Colors.blue[700],
+                  thumbColor: Colors.blue[900],
+                ),
+                child: Slider(value: peso, min: 0.0, max: 1.0, divisions: 100, onChanged: (v) => setDialogState(() => peso = v)),
+              ),
             ],
           ),
           actions: [
@@ -307,10 +305,26 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
                   TextField(key: keyContexto, controller: contextoCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Contexto / Descripción')),
                   const SizedBox(height: 10),
                   Text("Peso del nivel: ${peso.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Container(key: keyPesoDesc, child: Slider(value: peso, min: 0, max: 1, divisions: 100, activeColor: Colors.teal, onChanged: (v) => setDialogState(() => peso = v))),
+                  Container(
+                    key: keyPesoDesc,
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        inactiveTrackColor: Colors.grey[400],
+                        activeTrackColor: Colors.teal[700],
+                        thumbColor: Colors.teal[900],
+                      ),
+                      child: Slider(value: peso, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => peso = v)),
+                    ),
+                  ),
                   TextField(controller: a1NCtrl, decoration: const InputDecoration(labelText: 'Analítico 1')),
                   Text("Grado 1: ${grado1.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(value: grado1, min: 0, max: 1, divisions: 100, activeColor: Colors.teal, onChanged: (v) => setDialogState(() => grado1 = v)),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      inactiveTrackColor: Colors.grey[400],
+                      activeTrackColor: Colors.teal[700],
+                    ),
+                    child: Slider(value: grado1, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => grado1 = v)),
+                  ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: 'Operador Lógico'),
@@ -321,7 +335,13 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
                   if (operador != null) ...[
                     TextField(controller: a2NCtrl, decoration: const InputDecoration(labelText: 'Analítico 2')),
                     Text("Grado 2: ${grado2.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Slider(value: grado2, min: 0, max: 1, divisions: 100, activeColor: Colors.teal, onChanged: (v) => setDialogState(() => grado2 = v))
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        inactiveTrackColor: Colors.grey[400],
+                        activeTrackColor: Colors.teal[700],
+                      ),
+                      child: Slider(value: grado2, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => grado2 = v)),
+                    )
                   ],
                 ],
               ),

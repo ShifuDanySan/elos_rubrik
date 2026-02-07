@@ -119,12 +119,30 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final docRef = await FirebaseFirestore.instance.collection('rubricas').add({
+        final plantillaInicial = [
+          {
+            'nombre': 'Criterio 1',
+            'peso': 0.0,
+            'descriptores': [
+              {
+                'contexto': 'Descriptor 1',
+                'peso': 0.0,
+                'analitico1': {'nombre': 'Analítico 1', 'grado': 0.0},
+                'operador': null,
+                'analitico2': null,
+              }
+            ]
+          }
+        ];
+
+        final docRef = await FirebaseFirestore.instance
+            .collection('artifacts/$__app_id/users/${user.uid}/rubricas')
+            .add({
           'nombre': _nombreController.text.trim(),
           'userId': user.uid,
           'fechaCreacion': FieldValue.serverTimestamp(),
           'app_id': __app_id,
-          'criterios': [],
+          'criterios': plantillaInicial,
         });
 
         if (mounted) {
@@ -155,13 +173,11 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          // Botón para repetir tutorial
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: _showTutorial,
             tooltip: 'Ver tutorial',
           ),
-          // Botón de cerrar sesión restaurado
           AuthHelper.logoutButton(context),
         ],
       ),
@@ -177,7 +193,7 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                   const SizedBox(height: 15),
                   TextFormField(
                     controller: _nombreController,
-                    autofocus: true, // El cursor empieza aquí
+                    autofocus: true,
                     decoration: InputDecoration(
                       prefixIcon: Icon(Icons.description, key: _keyIconoNombre, color: primaryColor),
                       hintText: 'Ej: Evaluación de Proyecto Final',
