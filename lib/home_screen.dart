@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // Para detectar la Web
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'crear_rubrica_screen.dart';
 import 'lista_rubricas_screen.dart';
 import 'lista_evaluaciones_screen.dart';
-import 'profile_edit_screen.dart'; // <--- REHABILITADO
+import 'profile_edit_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
 import 'auth_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ===============================================
 // CONSTANTES DE ESTILO
@@ -19,7 +21,7 @@ const Color _homeBackgroundColor = Color(0xFFEDE7F6);
 const String _imageUrl = 'assets/images/logo-elos.jpg';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,10 +32,119 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _photoUrl;
   bool _isLoading = true;
 
+  final GlobalKey _keyBanner = GlobalKey();
+  final GlobalKey _keyOpciones = GlobalKey();
+  final GlobalKey _keyPerfil = GlobalKey();
+
+  late TutorialCoachMark tutorialCoachMark;
+  List<TargetFocus> targets = [];
+
   @override
   void initState() {
     super.initState();
     _cargarDatosUsuario();
+    _initTutorial();
+    _checkFirstSeen();
+  }
+
+  Future<void> _checkFirstSeen() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool seen = (prefs.getBool('seen_home_tutorial') ?? false);
+
+    if (!seen) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        _showTutorial();
+      });
+      await prefs.setBool('seen_home_tutorial', true);
+    }
+  }
+
+  void _initTutorial() {
+    targets.clear();
+
+    targets.add(
+      TargetFocus(
+        identify: "BannerTarget",
+        keyTarget: _keyBanner,
+        shape: ShapeLightFocus.Circle,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            child: _buildTutorialStep("1", "Panel Principal", "Aquí verás el saludo dinámico y el logo oficial de ELOS."),
+          ),
+        ],
+      ),
+    );
+
+    targets.add(
+      TargetFocus(
+        identify: "OpcionesTarget",
+        keyTarget: _keyOpciones,
+        shape: ShapeLightFocus.RRect,
+        radius: 15,
+        contents: [
+          TargetContent(
+            align: ContentAlign.top,
+            child: _buildTutorialStep("2", "Acciones", "Desde aquí puedes crear rúbricas, gestionar evaluaciones o ver tus resultados."),
+          ),
+        ],
+      ),
+    );
+
+    targets.add(
+      TargetFocus(
+        identify: "PerfilTarget",
+        keyTarget: _keyPerfil,
+        shape: ShapeLightFocus.Circle,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            child: _buildTutorialStep("3", "Tu Cuenta", "Accede a la edición de tu perfil y sincronización de datos aquí."),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTutorialStep(String step, String title, String text) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _accentColor, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: _accentColor,
+                radius: 12,
+                child: Text(step, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(text, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  void _showTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: targets,
+      colorShadow: Colors.black,
+      opacityShadow: 0.8,
+      paddingFocus: 10,
+      textSkip: "SALTAR",
+      onFinish: () => debugPrint("Tutorial finalizado"),
+    )..show(context: context);
   }
 
   Future<void> _cargarDatosUsuario() async {
@@ -64,7 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _nombreUsuario = "USUARIO";
         _isLoading = false;
       });
-      debugPrint("Error cargando datos: $e");
     }
   }
 
@@ -78,21 +188,21 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Map<String, dynamic>> _menuOptions = const [
     {
       'title': 'Crear Nueva Rúbrica',
-      'subtitle': 'Diseña una nueva herramienta de evaluación con criterios y descriptores.',
+      'subtitle': 'Diseña una nueva herramienta de evaluación con criterios.',
       'icon': Icons.edit_note_sharp,
       'color': Color(0xFF7E57C2),
       'screen': CrearRubricaScreen(),
     },
     {
-      'title': 'Gestionar y Evaluar Rúbricas',
-      'subtitle': 'Visualiza tus rúbricas existentes, evalúa a estudiantes y revisa resultados.',
+      'title': 'Gestionar y Evaluar',
+      'subtitle': 'Visualiza tus rúbricas y evalúa a estudiantes.',
       'icon': Icons.rule_sharp,
       'color': Color(0xFF66BB6A),
       'screen': ListaRubricasScreen(),
     },
     {
       'title': 'Mis Evaluaciones',
-      'subtitle': 'Acceso rápido a todas las evaluaciones realizadas y métricas de desempeño.',
+      'subtitle': 'Acceso rápido a todas las evaluaciones realizadas.',
       'icon': Icons.bar_chart_sharp,
       'color': Color(0xFFEF5350),
       'screen': ListaEvaluacionesScreen(),
@@ -107,17 +217,23 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          // Botón solicitado para repetir el tutorial
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: 'Repetir Tutorial',
+            onPressed: _showTutorial,
+          ),
           Tooltip(
             message: 'Perfil',
             child: GestureDetector(
+              key: _keyPerfil,
               onTap: () {
-                // CAMBIO ÚNICO: Navegar a la pantalla de edición
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
                 ).then((_) => _cargarDatosUsuario());
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: CircleAvatar(
                   radius: 18,
                   backgroundColor: Colors.white24,
@@ -145,6 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     FittedBox(
+                      key: _keyBanner,
                       fit: BoxFit.scaleDown,
                       child: _buildDynamicWelcomeBanner(),
                     ),
@@ -161,62 +278,65 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    ..._menuOptions.map((option) {
-                      final Color color = option['color'] as Color;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 20.0),
-                        child: Card(
-                          elevation: 6,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (context) => option['screen'] as Widget),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(15),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: color.withOpacity(0.5)),
+                    Column(
+                      key: _keyOpciones,
+                      children: _menuOptions.map((option) {
+                        final Color color = option['color'] as Color;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: Card(
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) => option['screen'] as Widget),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(15),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: color.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: color.withOpacity(0.5)),
+                                      ),
+                                      child: Icon(option['icon'] as IconData, color: color, size: 30),
                                     ),
-                                    child: Icon(option['icon'] as IconData, color: color, size: 30),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          option['title'] as String,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                              color: Colors.deepPurple.shade700
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            option['title'] as String,
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: Colors.deepPurple.shade700
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          option['subtitle'] as String,
-                                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                                        ),
-                                      ],
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            option['subtitle'] as String,
+                                            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Icon(Icons.chevron_right, size: 24, color: Colors.grey.shade400),
-                                ],
+                                    Icon(Icons.chevron_right, size: 24, color: Colors.grey.shade400),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
@@ -228,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDynamicWelcomeBanner() {
-    double size = 380;
+    double size = 300;
     double scaleFactor = kIsWeb ? 1.04 : 1.15;
 
     return Container(
@@ -303,7 +423,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// --- CLASES DE FONDO ANIMADO ---
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override
