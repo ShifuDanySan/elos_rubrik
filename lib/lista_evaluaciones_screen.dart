@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'detalle_evaluacion_screen.dart';
 import 'auth_helper.dart';
+import 'tutorial_helper.dart'; // Importante importar el helper
 
 class ListaEvaluacionesScreen extends StatefulWidget {
   const ListaEvaluacionesScreen({super.key});
@@ -15,9 +16,35 @@ class ListaEvaluacionesScreen extends StatefulWidget {
 class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
-  String _filtroEstudiante = ""; // Estado para el buscador de alumnos
+  String _filtroEstudiante = "";
 
-  // FUNCIÓN PARA NORMALIZAR TEXTO (Ignora acentos y mayúsculas)
+  // KEYS PARA EL TUTORIAL
+  final GlobalKey _keyBuscadorEstudiante = GlobalKey();
+  final GlobalKey _keyFiltroCalendario = GlobalKey();
+  final GlobalKey _keyPrimeraEvaluacion = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Ejecutar tutorial después de que el frame se renderice
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showTutorial();
+    });
+  }
+
+  void _showTutorial({bool force = false}) {
+    TutorialHelper().showTutorial(
+      context: context,
+      pageId: 'LISTA_EVALUACIONES',
+      keys: {
+        'buscador_estudiante': _keyBuscadorEstudiante,
+        'filtro_calendario': _keyFiltroCalendario,
+        'primera_evaluacion': _keyPrimeraEvaluacion,
+      },
+      force: force,
+    );
+  }
+
   String _normalizarTexto(String texto) {
     var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
     var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUaeiouAEIOUnN';
@@ -47,7 +74,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
             },
             child: const Text("ELIMINAR", style: TextStyle(color: Colors.red)),
           ),
-          AuthHelper.logoutButton(context),
         ],
       ),
     );
@@ -64,7 +90,10 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          // BOTÓN DE AYUDA PARA REPETIR TUTORIAL
+          TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           IconButton(
+            key: _keyFiltroCalendario, // KEY PARA EL CALENDARIO
             icon: const Icon(Icons.calendar_today),
             onPressed: () async {
               final picked = await showDatePicker(
@@ -83,10 +112,10 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
       ),
       body: Column(
         children: [
-          // --- BUSCADOR DE ESTUDIANTES ---
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
+              key: _keyBuscadorEstudiante, // KEY PARA EL BUSCADOR
               decoration: InputDecoration(
                 hintText: "Buscar estudiante...",
                 prefixIcon: const Icon(Icons.person_search, color: primaryColor),
@@ -112,7 +141,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
 
                 var docs = snapshot.data?.docs ?? [];
 
-                // --- 1. FILTRADO POR ESTUDIANTE (NORMALIZADO) ---
                 if (_filtroEstudiante.isNotEmpty) {
                   final busqueda = _normalizarTexto(_filtroEstudiante);
                   docs = docs.where((d) {
@@ -121,7 +149,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                   }).toList();
                 }
 
-                // --- 2. FILTRADO POR FECHA ---
                 if (_fechaFiltro != null) {
                   docs = docs.where((d) {
                     final timestamp = d.data()['fecha'] as Timestamp?;
@@ -131,7 +158,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                   }).toList();
                 }
 
-                // --- 3. ORDENAR POR FECHA (Más reciente primero) ---
                 docs.sort((a, b) {
                   final dateA = (a.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
                   final dateB = (b.data()['fecha'] as Timestamp?)?.toDate() ?? DateTime(2000);
@@ -150,12 +176,13 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                     final String id = docs[index].id;
                     final timestamp = data['fecha'] as Timestamp?;
 
-                    // Solo fecha sin hora para el listado
                     final String fechaLabel = timestamp != null
                         ? DateFormat('dd/MM/yyyy').format(timestamp.toDate())
                         : "S/F";
 
                     return Card(
+                      // KEY PARA LA PRIMERA CARD DE LA LISTA
+                      key: index == 0 ? _keyPrimeraEvaluacion : null,
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,

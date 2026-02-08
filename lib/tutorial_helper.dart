@@ -38,6 +38,57 @@ class TutorialHelper {
   List<TargetFocus> _configurarTargetsPorPagina(String pageId, Map<String, GlobalKey> keys) {
     List<TargetFocus> targets = [];
     switch (pageId) {
+      case 'EVALUAR_RUBRICA':
+        if (keys.containsKey('importar')) {
+          _addStep(targets, keys['importar']!, "Importar Alumnos", "Puedes descargar una plantilla Excel o importar directamente tu lista de estudiantes.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('selector')) {
+          _addStep(targets, keys['selector']!, "Seleccionar Estudiante", "Una vez importado el archivo, elige aquí al alumno que vas a evaluar.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('tab_manual')) {
+          _addStep(targets, keys['tab_manual']!, "Carga Manual", "Si no tienes un Excel, puedes ingresar los datos del alumno manualmente aquí.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('btn_comenzar')) {
+          _addStep(targets, keys['btn_comenzar']!, "Iniciar", "Cuando el formulario esté completo, presiona este botón para abrir la matriz de evaluación.", ContentAlign.top, pageId);
+        }
+        break;
+
+      case 'LISTA_RUBRICAS':
+        if (keys.containsKey('buscador')) {
+          _addStep(targets, keys['buscador']!, "Buscador", "Encuentra tus rúbricas rápidamente escribiendo su nombre.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('filtro_fecha')) {
+          _addStep(targets, keys['filtro_fecha']!, "Filtro por Fecha", "Localiza tus rúbricas por el día en que fueron creadas.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('primera_card')) {
+          _addStep(targets, keys['primera_card']!, "Tus Rúbricas", "Toca cualquier rúbrica de la lista para ver las opciones de evaluar, editar o eliminar.", ContentAlign.bottom, pageId);
+        }
+        break;
+
+      case 'LISTA_EVALUACIONES':
+        if (keys.containsKey('buscador_estudiante')) {
+          _addStep(targets, keys['buscador_estudiante']!, "Buscador de Estudiantes", "Filtra el historial escribiendo el nombre del estudiante evaluado.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('filtro_calendario')) {
+          _addStep(targets, keys['filtro_calendario']!, "Calendario", "Busca evaluaciones realizadas en una fecha específica.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('primera_evaluacion')) {
+          _addStep(targets, keys['primera_evaluacion']!, "Detalle del Resultado", "Presiona una tarjeta para ver el desglose completo de la nota, criterios y comentarios.", ContentAlign.bottom, pageId);
+        }
+        break;
+
+      case 'OPCIONES_RUBRICA':
+        if (keys.containsKey('opcion_evaluar')) {
+          _addStep(targets, keys['opcion_evaluar']!, "Comenzar Evaluación", "Usa esta opción para calificar a tus alumnos usando esta rúbrica.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('opcion_editar')) {
+          _addStep(targets, keys['opcion_editar']!, "Modificar", "Cambia criterios, pesos o descriptores de la rúbrica.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('opcion_eliminar')) {
+          _addStep(targets, keys['opcion_eliminar']!, "Eliminar Rúbrica", "Borra permanentemente esta rúbrica si ya no la necesitas.", ContentAlign.top, pageId);
+        }
+        break;
+
       case 'EDITAR_RUBRICA':
         if (keys.containsKey('suma')) {
           _addStep(targets, keys['suma']!, "Suma de Pesos", "La suma total debe ser siempre 1.00 para que la rúbrica sea válida.", ContentAlign.bottom, pageId);
@@ -137,6 +188,12 @@ class TutorialHelper {
   }
 
   static Widget helpButton(BuildContext context, VoidCallback onPressed) {
-    return IconButton(icon: const Icon(Icons.help_outline, color: Colors.white), onPressed: onPressed);
+    return Tooltip(
+      message: "Repetir Tutorial",
+      child: IconButton(
+        icon: const Icon(Icons.help_outline, color: Colors.white),
+        onPressed: onPressed,
+      ),
+    );
   }
 }

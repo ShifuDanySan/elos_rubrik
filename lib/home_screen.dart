@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _nombreUsuario = "";
   String? _photoUrl;
   bool _isLoading = true;
+  final String __app_id = 'rubrica_evaluator';
 
   final GlobalKey _keyBanner = GlobalKey();
   final GlobalKey _keyOpciones = GlobalKey();
@@ -185,27 +186,106 @@ class _HomeScreenState extends State<HomeScreen> {
     return "BUENAS NOCHES";
   }
 
+  // Validación para Rúbricas
+  Future<void> _verificarYEntrarALista() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('artifacts/$__app_id/users/${user.uid}/rubricas')
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      if (!mounted) return;
+      _mostrarDialogoInformativo(
+        "No hay rúbricas",
+        "Aún no has creado ninguna rúbrica. Por favor, crea una nueva para poder gestionarla.",
+      );
+    } else {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const ListaRubricasScreen()),
+      );
+    }
+  }
+
+  // Validación para Evaluaciones
+  Future<void> _verificarYEntrarAEvaluaciones() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('artifacts/$__app_id/users/${user.uid}/evaluaciones')
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      if (!mounted) return;
+      _mostrarDialogoInformativo(
+        "Sin evaluaciones",
+        "No se han encontrado evaluaciones realizadas. Realiza una evaluación desde 'Gestionar y Evaluar' para ver el historial.",
+      );
+    } else {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => const ListaEvaluacionesScreen()),
+      );
+    }
+  }
+
+  void _mostrarDialogoInformativo(String titulo, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Icon(Icons.info_outline, size: 50, color: _primaryColor),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              titulo,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("ENTENDIDO", style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   final List<Map<String, dynamic>> _menuOptions = const [
     {
+      'id': 'crear',
       'title': 'Crear Nueva Rúbrica',
       'subtitle': 'Diseña una nueva herramienta de evaluación con criterios.',
       'icon': Icons.edit_note_sharp,
       'color': Color(0xFF7E57C2),
-      'screen': CrearRubricaScreen(),
     },
     {
+      'id': 'gestionar',
       'title': 'Gestionar y Evaluar',
       'subtitle': 'Visualiza tus rúbricas y evalúa a estudiantes.',
       'icon': Icons.rule_sharp,
       'color': Color(0xFF66BB6A),
-      'screen': ListaRubricasScreen(),
     },
     {
+      'id': 'evaluaciones',
       'title': 'Mis Evaluaciones',
       'subtitle': 'Acceso rápido a todas las evaluaciones realizadas.',
       'icon': Icons.bar_chart_sharp,
       'color': Color(0xFFEF5350),
-      'screen': ListaEvaluacionesScreen(),
     },
   ];
 
@@ -217,7 +297,6 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          // Botón solicitado para repetir el tutorial
           IconButton(
             icon: const Icon(Icons.help_outline),
             tooltip: 'Repetir Tutorial',
@@ -289,9 +368,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                             child: InkWell(
                               onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => option['screen'] as Widget),
-                                );
+                                if (option['id'] == 'crear') {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (context) => const CrearRubricaScreen()),
+                                  );
+                                } else if (option['id'] == 'gestionar') {
+                                  _verificarYEntrarALista();
+                                } else if (option['id'] == 'evaluaciones') {
+                                  _verificarYEntrarAEvaluaciones();
+                                }
                               },
                               borderRadius: BorderRadius.circular(15),
                               child: Padding(
