@@ -1,4 +1,3 @@
-// login_register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
+// Importación para forzar el CSS en Web
+import 'dart:html' as html;
 
 // Constantes de estilo
 const Color _primaryColor = Color(0xFF3949AB);
@@ -192,6 +193,13 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   @override
   void initState() {
     super.initState();
+
+    // CAPA 1: Inyección de CSS para forzar el cursor negro en el navegador (Localhost suele dar problemas)
+    final style = html.StyleElement()
+      ..id = 'force-black-cursor'
+      ..innerHtml = "input { caret-color: black !important; }";
+    html.document.head?.append(style);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFieldFocusNode.requestFocus();
     });
@@ -225,6 +233,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
             TextField(
               controller: _resetEmailController,
               keyboardType: TextInputType.emailAddress,
+              cursorColor: Colors.black, // También aquí
               decoration: InputDecoration(
                 labelText: 'Correo Electrónico',
                 prefixIcon: const Icon(Icons.email_outlined),
@@ -252,11 +261,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                 await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Mail enviado. Revisa tu correo.'), backgroundColor: Colors.green),
+                  const SnackBar(content: Text('Correo enviado. Revisa tu bandeja de entrada.'), backgroundColor: Colors.green),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Error al enviar el correo.'), backgroundColor: Colors.red),
+                  const SnackBar(content: Text('Error: No se pudo enviar el correo de recuperación.'), backgroundColor: Colors.red),
                 );
               }
             },
@@ -290,8 +299,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
     setState(() { _isLoading = true; });
 
-    // CORRECCIÓN: Forzar el cierre de sesión antes de intentar loguear.
-    // Esto garantiza que la app valide la contraseña contra el servidor y no use tokens viejos.
     await FirebaseAuth.instance.signOut();
 
     final dniLimpio = _dniController.text.replaceAll('.', '');
@@ -329,7 +336,42 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const HomeScreen()));
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.message}'), backgroundColor: Colors.red));
+
+      String mensajeError;
+
+      switch (e.code) {
+        case 'user-not-found':
+        case 'invalid-credential':
+        case 'wrong-password':
+          mensajeError = 'DNI o contraseña incorrectos.';
+          break;
+        case 'email-already-in-use':
+          mensajeError = 'Este correo electrónico ya está en uso.';
+          break;
+        case 'weak-password':
+          mensajeError = 'La contraseña debe tener al menos 6 caracteres.';
+          break;
+        case 'invalid-email':
+          mensajeError = 'El formato del correo electrónico no es válido.';
+          break;
+        case 'user-disabled':
+          mensajeError = 'Esta cuenta ha sido deshabilitada.';
+          break;
+        case 'too-many-requests':
+          mensajeError = 'Demasiados intentos. Inténtalo más tarde.';
+          break;
+        default:
+          mensajeError = 'Error al iniciar sesión. Verifica tus datos.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeError), backgroundColor: Colors.red)
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error de conexión o datos inválidos.'), backgroundColor: Colors.red)
+      );
     } finally {
       if (mounted) setState(() { _isLoading = false; });
     }
@@ -337,21 +379,31 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          const FloatingShapesBackground(),
-          Center(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 600) {
-                  return _buildDesktopLayout();
-                }
-                return _buildMobileLayout();
-              },
+    return Theme(
+      // CAPA 2: Forzar color de cursor y selección vía Tema local
+      data: Theme.of(context).copyWith(
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Colors.black,
+          selectionColor: Colors.blueAccent,
+          selectionHandleColor: Colors.black,
+        ),
+      ),
+      child: Scaffold(
+        body: Stack(
+          children: [
+            const FloatingShapesBackground(),
+            Center(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 600) {
+                    return _buildDesktopLayout();
+                  }
+                  return _buildMobileLayout();
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -412,6 +464,8 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         keyboardType: keyboardType,
         inputFormatters: formatters,
         maxLength: maxLength,
+        // CAPA 3: Propiedad directa del widget
+        cursorColor: Colors.black,
         scrollPadding: const EdgeInsets.only(bottom: 100),
         decoration: InputDecoration(
           labelText: label,

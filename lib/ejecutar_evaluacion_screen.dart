@@ -107,6 +107,56 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     return double.parse(finalResult.toStringAsFixed(2));
   }
 
+  /// Muestra un diálogo de confirmación antes de guardar
+  void _mostrarDialogoConfirmacion() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.save_as, color: Color(0xFF1A237E)),
+              SizedBox(width: 10),
+              Text("Confirmar Envío"),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("¿Estás seguro de que deseas guardar esta evaluación?"),
+              const SizedBox(height: 15),
+              Text("Estudiante: ${widget.estudiante.toUpperCase()}",
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 5),
+              Text("Calificación Final: ${_calcularNotaFinal()}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 18)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("REVISAR", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryDark,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Cierra el diálogo
+                _guardarEvaluacion();   // Ejecuta el guardado real
+              },
+              child: const Text("CONFIRMAR Y GUARDAR", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _guardarEvaluacion() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -158,9 +208,21 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
         'rubricaId': widget.rubricaId,
       });
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        // Mensaje de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Datos guardados con éxito"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error al guardar: $e"), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -232,7 +294,6 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                             ...analiticos.asMap().entries.map((aEntry) {
                               int k = aEntry.key;
                               var ana = aEntry.value;
-                              // Capturamos el primer slider de la pantalla para el tutorial
                               bool esElPrimero = (i == 0 && j == 0 && k == 0);
                               return Column(
                                 key: esElPrimero ? _keyPrimerAnalitico : null,
@@ -302,7 +363,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                 const SizedBox(height: 15),
                 ElevatedButton(
                   key: _keyBtnGuardarEval,
-                  onPressed: _guardarEvaluacion,
+                  onPressed: _mostrarDialogoConfirmacion, // Activa el proceso de confirmación
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryDark,
                     minimumSize: const Size(double.infinity, 55),
