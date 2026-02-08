@@ -62,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _initTutorial() {
     targets.clear();
-
     targets.add(
       TargetFocus(
         identify: "BannerTarget",
@@ -71,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         contents: [
           TargetContent(
             align: ContentAlign.bottom,
-            child: _buildTutorialStep("1", "Panel Principal", "Aquí verás el saludo dinámico y el logo oficial de ELOS."),
+            child: _buildTutorialStep("1", "Panel Principal", "Aquí verás el saludo dinámico y el logo oficial de ELOS en formato moneda."),
           ),
         ],
       ),
@@ -186,7 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return "BUENAS NOCHES";
   }
 
-  // Validación para Rúbricas
   Future<void> _verificarYEntrarALista() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -210,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Validación para Evaluaciones
   Future<void> _verificarYEntrarAEvaluaciones() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -342,7 +339,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     FittedBox(
                       key: _keyBanner,
                       fit: BoxFit.scaleDown,
-                      child: _buildDynamicWelcomeBanner(),
+                      child: CoinFlipLogo(
+                        photoUrl: _photoUrl,
+                        saludo: _isLoading ? 'CARGANDO...' : _obtenerSaludoPorHora(),
+                        nombre: _nombreUsuario.toUpperCase(),
+                      ),
                     ),
                     const SizedBox(height: 30),
                     Align(
@@ -431,83 +432,196 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
 
-  Widget _buildDynamicWelcomeBanner() {
-    double size = 300;
-    double scaleFactor = kIsWeb ? 1.04 : 1.15;
+// ===============================================
+// WIDGET: MONEDA GIRATORIA SIEMPRE A LA DERECHA
+// ===============================================
+class CoinFlipLogo extends StatefulWidget {
+  final String? photoUrl;
+  final String saludo;
+  final String nombre;
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            spreadRadius: 4,
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipOval(
-        child: Stack(
+  const CoinFlipLogo({
+    super.key,
+    this.photoUrl,
+    required this.saludo,
+    required this.nombre,
+  });
+
+  @override
+  State<CoinFlipLogo> createState() => _CoinFlipLogoState();
+}
+
+class _CoinFlipLogoState extends State<CoinFlipLogo> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double _currentAngle = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+
+    // Inicialmente de 0 a 0
+    _animation = Tween<double>(begin: 0, end: 0).animate(_controller);
+
+    _startTimer();
+  }
+
+  void _startTimer() async {
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 5));
+      if (mounted) {
+        // Incrementamos el ángulo 180 grados (pi) siempre hacia adelante
+        double nextAngle = _currentAngle + math.pi;
+
+        setState(() {
+          _animation = Tween<double>(
+            begin: _currentAngle,
+            end: nextAngle,
+          ).animate(CurvedAnimation(
+            parent: _controller,
+            curve: Curves.easeInOutBack,
+          ));
+        });
+
+        await _controller.forward(from: 0);
+        _currentAngle = nextAngle;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 300;
+    const double scaleFactor = kIsWeb ? 1.04 : 1.15;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final double angle = _animation.value;
+
+        // Normalizamos el ángulo para saber qué cara mostrar (0-360 grados)
+        // Cada pi (180 grados) cambia la visibilidad.
+        final double normalizedAngle = angle % (2 * math.pi);
+        final bool isBackVisible = normalizedAngle > math.pi / 2 && normalizedAngle < 1.5 * math.pi;
+
+        return Transform(
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001) // Perspectiva
+            ..rotateY(angle),
           alignment: Alignment.center,
-          children: [
-            Transform.scale(
-              scale: scaleFactor,
-              child: Image.asset(
-                _imageUrl,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-              ),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 4,
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            Positioned(
-              top: 45,
-              child: SizedBox(
-                width: size * 0.8,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _isLoading ? 'CARGANDO...' : _obtenerSaludoPorHora(),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                        shadows: [
-                          Shadow(blurRadius: 12, color: Colors.black, offset: Offset(2, 2)),
-                        ],
+            child: ClipOval(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Lado FRONT: Logo
+                  if (!isBackVisible)
+                    Transform.scale(
+                      scale: scaleFactor,
+                      child: Image.asset(
+                        _imageUrl,
+                        width: size,
+                        height: size,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                    if (!_isLoading) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        _nombreUsuario.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(blurRadius: 15, color: Colors.black, offset: Offset(2, 2)),
+
+                  // Lado BACK: Foto Perfil
+                  if (isBackVisible)
+                    Transform(
+                      // Rotamos el contenido trasero 180 grados para que no se vea espejado
+                      transform: Matrix4.identity()..rotateY(math.pi),
+                      alignment: Alignment.center,
+                      child: Transform.scale(
+                        scale: scaleFactor,
+                        child: (widget.photoUrl != null && widget.photoUrl!.isNotEmpty)
+                            ? Image.network(
+                          widget.photoUrl!,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.cover,
+                        )
+                            : Image.asset(
+                          _imageUrl,
+                          width: size,
+                          height: size,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+
+                  // Texto sobre el Logo (Solo visible cuando el frente está hacia nosotros)
+                  if (!isBackVisible)
+                    Positioned(
+                      top: 45,
+                      child: SizedBox(
+                        width: size * 0.8,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.saludo,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                                letterSpacing: 1.2,
+                                shadows: [Shadow(blurRadius: 12, color: Colors.black, offset: Offset(2, 2))],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.nombre,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                                color: Colors.white,
+                                shadows: [Shadow(blurRadius: 15, color: Colors.black, offset: Offset(2, 2))],
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
+// ===============================================
+// FONDO ANIMADO
+// ===============================================
 class FloatingShapesBackground extends StatefulWidget {
   const FloatingShapesBackground({super.key});
   @override

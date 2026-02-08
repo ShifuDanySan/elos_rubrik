@@ -5,8 +5,6 @@ import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
-// Importación para forzar el CSS en Web
-import 'dart:html' as html;
 
 // Constantes de estilo
 const Color _primaryColor = Color(0xFF3949AB);
@@ -173,7 +171,7 @@ class LoginRegisterScreen extends StatefulWidget {
   State<LoginRegisterScreen> createState() => _LoginRegisterScreenState();
 }
 
-class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
+class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTickerProviderStateMixin {
   bool _esLogin = true;
   bool _mostrarPassword = false;
   bool _isLoading = false;
@@ -190,19 +188,21 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   final FocusNode _firstFieldFocusNode = FocusNode();
   final int _tipoUsuarioPorDefecto = 2;
 
+  late AnimationController _blinkController;
+  late Animation<double> _blinkAnimation;
+
   @override
   void initState() {
     super.initState();
-
-    // CAPA 1: Inyección de CSS para forzar el cursor negro en el navegador (Localhost suele dar problemas)
-    final style = html.StyleElement()
-      ..id = 'force-black-cursor'
-      ..innerHtml = "input { caret-color: black !important; }";
-    html.document.head?.append(style);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _firstFieldFocusNode.requestFocus();
     });
+
+    _blinkController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    _blinkAnimation = Tween<double>(begin: 1.0, end: 0.3).animate(_blinkController);
   }
 
   @override
@@ -214,7 +214,69 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     _emailController.dispose();
     _confirmPasswordController.dispose();
     _firstFieldFocusNode.dispose();
+    _blinkController.dispose();
     super.dispose();
+  }
+
+  void _mostrarInfoPagina() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Center(
+          child: Text(
+            "¡BIENVENIDO A ELOS!",
+            style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold),
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: [
+              const Text(
+                "Estás en una plataforma diseñada para modernizar la forma en que evalúas las competencias de tus estudiantes, superando la rigidez de las rúbricas tradicionales.",
+                style: TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 15),
+              const Text("¿Qué puedes hacer tú como docente aquí?"),
+              const SizedBox(height: 10),
+              _bulletPoint("Crea y Personaliza: diseña tus propias rúbricas definiendo los criterios que mejor se adapten a tu cátedra."),
+              _bulletPoint("Gestión de estudiantes: importa tus listados directamente desde archivos Excel para facilitar tu trabajo administrativo."),
+              _bulletPoint("Evaluación Precisa: utiliza controles deslizantes (sliders) para asignar valores, capturando matices que una nota fija ignora."),
+              _bulletPoint("Lógica Difusa: ELOS procesa tus valoraciones mediante un motor de cálculo difuso para darte resultados precisos."),
+              _bulletPoint("Historial y Reportes: consulta evaluaciones guardadas en la nube y genera reportes en PDF para tus estudiantes."),
+              const SizedBox(height: 15),
+              const Text(
+                "ELOS te permite manejar la subjetividad natural del aprendizaje, dándote una representación fiel del progreso real de tus estudiantes.",
+                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("ENTENDIDO", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("• ", style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
   }
 
   Future<void> _mostrarRecuperarPassword() async {
@@ -233,7 +295,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
             TextField(
               controller: _resetEmailController,
               keyboardType: TextInputType.emailAddress,
-              cursorColor: Colors.black, // También aquí
               decoration: InputDecoration(
                 labelText: 'Correo Electrónico',
                 prefixIcon: const Icon(Icons.email_outlined),
@@ -338,7 +399,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
       if (!mounted) return;
 
       String mensajeError;
-
       switch (e.code) {
         case 'user-not-found':
         case 'invalid-credential':
@@ -379,31 +439,21 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      // CAPA 2: Forzar color de cursor y selección vía Tema local
-      data: Theme.of(context).copyWith(
-        textSelectionTheme: const TextSelectionThemeData(
-          cursorColor: Colors.black,
-          selectionColor: Colors.blueAccent,
-          selectionHandleColor: Colors.black,
-        ),
-      ),
-      child: Scaffold(
-        body: Stack(
-          children: [
-            const FloatingShapesBackground(),
-            Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 600) {
-                    return _buildDesktopLayout();
-                  }
-                  return _buildMobileLayout();
-                },
-              ),
+    return Scaffold(
+      body: Stack(
+        children: [
+          const FloatingShapesBackground(),
+          Center(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 600) {
+                  return _buildDesktopLayout();
+                }
+                return _buildMobileLayout();
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -411,7 +461,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   Widget _buildDesktopLayout() {
     return Container(
       width: 500,
-      constraints: const BoxConstraints(maxHeight: 850),
+      constraints: const BoxConstraints(maxHeight: 900),
       padding: const EdgeInsets.all(40.0),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -464,8 +514,6 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         keyboardType: keyboardType,
         inputFormatters: formatters,
         maxLength: maxLength,
-        // CAPA 3: Propiedad directa del widget
-        cursorColor: Colors.black,
         scrollPadding: const EdgeInsets.only(bottom: 100),
         decoration: InputDecoration(
           labelText: label,
@@ -494,7 +542,22 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Icon(_esLogin ? Icons.login_rounded : Icons.person_add_alt_1_rounded, size: 80, color: _primaryColor),
+          FadeTransition(
+            opacity: _blinkAnimation,
+            child: Column(
+              children: [
+                const Text(
+                  "INFORMACIÓN DE LA PÁGINA",
+                  style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                IconButton(
+                  iconSize: 85,
+                  icon: const Icon(Icons.login_rounded, color: _primaryColor),
+                  onPressed: _mostrarInfoPagina,
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 10),
           if (_esLogin) ...[
             const Text(

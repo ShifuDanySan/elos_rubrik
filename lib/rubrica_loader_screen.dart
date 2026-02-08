@@ -2,9 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'evaluar_rubrica_screen.dart';
-import 'auth_helper.dart'; // <--- 1. IMPORTAR HELPER
+import 'auth_helper.dart';
 
 Future<Map<String, dynamic>> fetchRubricaDesdeFirestore(String rubricaId) async {
+  // Nota: Asegúrate de que la ruta de la colección sea la correcta según tu estructura
+  // Si usas el ID de la aplicación, cámbialo aquí.
   final docSnapshot = await FirebaseFirestore.instance
       .collection('rubricas')
       .doc(rubricaId)
@@ -21,6 +23,7 @@ Future<Map<String, dynamic>> fetchRubricaDesdeFirestore(String rubricaId) async 
 }
 
 class RubricaLoaderScreen extends StatelessWidget {
+  // Asegúrate de que este ID sea dinámico o correcto en tu base de datos
   final String rubricaId = 'ID_DEL_DOCUMENTO_DE_LA_RUBRICA';
 
   const RubricaLoaderScreen({super.key});
@@ -30,7 +33,6 @@ class RubricaLoaderScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cargando Rúbrica...'),
-        // 2. AÑADIR ACTIONS AQUÍ (Dentro del AppBar)
         actions: [
           AuthHelper.logoutButton(context),
         ],
@@ -45,7 +47,14 @@ class RubricaLoaderScreen extends StatelessWidget {
               child: Text('Error: ${snapshot.error}'),
             );
           } else if (snapshot.hasData) {
-            return EvaluarRubricaScreen(rubrica: snapshot.data!);
+            final data = snapshot.data!;
+
+            // Corregimos la llamada al constructor de EvaluarRubricaScreen
+            // Extraemos los valores necesarios del Map devuelto por Firestore
+            return EvaluarRubricaScreen(
+              nombreRubrica: data['nombre'] ?? 'Sin nombre',
+              rubricaId: data['docId'] ?? rubricaId,
+            );
           } else {
             return const Center(child: Text('No hay datos'));
           }
