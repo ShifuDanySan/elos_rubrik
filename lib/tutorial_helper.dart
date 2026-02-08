@@ -16,6 +16,8 @@ class TutorialHelper {
     required Map<String, GlobalKey> keys,
     bool force = false,
   }) async {
+    if (_tutorial != null) return;
+
     if (!force) {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       if (prefs.getBool('$_prefKeyPrefix$pageId') ?? false) return;
@@ -29,7 +31,15 @@ class TutorialHelper {
       colorShadow: const Color(0xFF1A237E),
       hideSkip: true,
       opacityShadow: 0.8,
-      onFinish: () => _marcarComoVisto(pageId),
+      onFinish: () {
+        _marcarComoVisto(pageId);
+        _tutorial = null;
+      },
+      onSkip: () {
+        _marcarComoVisto(pageId);
+        _tutorial = null;
+        return true;
+      },
     );
 
     _tutorial!.show(context: context);
@@ -40,13 +50,13 @@ class TutorialHelper {
     switch (pageId) {
       case 'EVALUAR_RUBRICA':
         if (keys.containsKey('importar')) {
-          _addStep(targets, keys['importar']!, "Importar Alumnos", "Puedes descargar una plantilla Excel o importar directamente tu lista de estudiantes.", ContentAlign.bottom, pageId);
+          _addStep(targets, keys['importar']!, "Importar listado de estudiantes", "Puedes descargar una plantilla Excel o importar directamente tu lista de estudiantes.", ContentAlign.bottom, pageId);
         }
         if (keys.containsKey('selector')) {
-          _addStep(targets, keys['selector']!, "Seleccionar Estudiante", "Una vez importado el archivo, elige aquí al alumno que vas a evaluar.", ContentAlign.bottom, pageId);
+          _addStep(targets, keys['selector']!, "Seleccionar Estudiante", "Una vez importado el archivo, elige aquí al estudiante que vas a evaluar.", ContentAlign.bottom, pageId);
         }
         if (keys.containsKey('tab_manual')) {
-          _addStep(targets, keys['tab_manual']!, "Carga Manual", "Si no tienes un Excel, puedes ingresar los datos del alumno manualmente aquí.", ContentAlign.bottom, pageId);
+          _addStep(targets, keys['tab_manual']!, "Carga Manual", "Si no tienes un Excel, puedes ingresar los datos del estudiante manualmente aquí.", ContentAlign.bottom, pageId);
         }
         if (keys.containsKey('btn_comenzar')) {
           _addStep(targets, keys['btn_comenzar']!, "Iniciar", "Cuando el formulario esté completo, presiona este botón para abrir la matriz de evaluación.", ContentAlign.top, pageId);
@@ -79,7 +89,7 @@ class TutorialHelper {
 
       case 'OPCIONES_RUBRICA':
         if (keys.containsKey('opcion_evaluar')) {
-          _addStep(targets, keys['opcion_evaluar']!, "Comenzar Evaluación", "Usa esta opción para calificar a tus alumnos usando esta rúbrica.", ContentAlign.bottom, pageId);
+          _addStep(targets, keys['opcion_evaluar']!, "Comenzar Evaluación", "Usa esta opción para calificar a tus estudiantes usando esta rúbrica.", ContentAlign.bottom, pageId);
         }
         if (keys.containsKey('opcion_editar')) {
           _addStep(targets, keys['opcion_editar']!, "Modificar", "Cambia criterios, pesos o descriptores de la rúbrica.", ContentAlign.bottom, pageId);
@@ -117,11 +127,53 @@ class TutorialHelper {
         if (keys.containsKey('contexto')) {
           _addStep(targets, keys['contexto']!, "Contexto", "Nivel de desempeño a evaluar.", ContentAlign.bottom, pageId);
         }
-        if (keys.containsKey('peso_desc')) {
-          _addStep(targets, keys['peso_desc']!, "Peso", "Influencia de este descriptor.", ContentAlign.bottom, pageId);
+        if (keys.containsKey('clase_peso')) {
+          _addStep(targets, keys['clase_peso']!, "Peso", "Influencia de este descriptor.", ContentAlign.bottom, pageId);
         }
         if (keys.containsKey('boton_aceptar')) {
           _addStep(targets, keys['boton_aceptar']!, "Guardar", "Finaliza el descriptor.", ContentAlign.top, pageId);
+        }
+        break;
+
+      case 'DETALLE_EVALUACION':
+        if (keys.containsKey('card_nota')) {
+          _addStep(targets, keys['card_nota']!, "Resumen de Nota", "Aquí puedes ver los datos básicos del estudiante y la rúbrica, así como la calificación obtenida durante la aplicación de la misma.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('btn_pdf')) {
+          _addStep(targets, keys['btn_pdf']!, "Exportar Reporte", "Genera un documento PDF detallado con todos los resultados obtenidos.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('desglose_criterio')) {
+          _addStep(targets, keys['desglose_criterio']!, "Análisis Detallado", "Explora cómo se compone el puntaje de cada criterio revisando los analíticos y evidencias evaluadas.", ContentAlign.top, pageId);
+        }
+        if (keys.containsKey('btn_info')) {
+          _addStep(targets, keys['btn_info']!, "Lógica de Evaluación", "Toca aquí para entender el modelo matemático de Lógica Compensatoria Difusa utilizado para calcular esta nota.", ContentAlign.bottom, pageId);
+        }
+        break;
+
+      case 'EDITAR_PERFIL':
+        if (keys.containsKey('avatar')) {
+          _addStep(targets, keys['avatar']!, "Foto de Perfil", "Toca tu imagen para subir una nueva fotografía desde tu galería.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('campos_fijos')) {
+          _addStep(targets, keys['campos_fijos']!, "Información de Registro", "El DNI y el Email no se pueden modificar por seguridad, ya que están vinculados a tu cuenta.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('boton_guardar')) {
+          _addStep(targets, keys['boton_guardar']!, "Guardar Cambios", "Una vez que termines de actualizar tu nombre o contraseña, presiona este botón para aplicar los cambios.", ContentAlign.top, pageId);
+        }
+        break;
+
+      case 'EJECUTAR_EVALUACION':
+        if (keys.containsKey('primer_analitico')) {
+          _addStep(targets, keys['primer_analitico']!, "Escala de Calificación", "Desliza para asignar un valor entre 0 y 1. Este representa el cumplimiento de este indicador específico.", ContentAlign.bottom, pageId);
+        }
+        if (keys.containsKey('valor_descriptor')) {
+          _addStep(targets, keys['valor_descriptor']!, "Resultado del Descriptor", "Este valor se calcula automáticamente multiplicando tus entradas por el grado objetivo del analítico.", ContentAlign.top, pageId);
+        }
+        if (keys.containsKey('nota_final')) {
+          _addStep(targets, keys['nota_final']!, "Calificación Final", "Aquí verás el resultado global basado en los pesos de cada criterio de tu rúbrica.", ContentAlign.top, pageId);
+        }
+        if (keys.containsKey('btn_guardar_eval')) {
+          _addStep(targets, keys['btn_guardar_eval']!, "Registrar Evaluación", "Al presionar aquí, la nota se guardará en el historial del estudiante permanentemente.", ContentAlign.top, pageId);
         }
         break;
     }

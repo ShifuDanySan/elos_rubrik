@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_helper.dart';
+import 'tutorial_helper.dart';
 
 class EjecutarEvaluacionScreen extends StatefulWidget {
   final Map<String, dynamic> rubricaData;
@@ -25,10 +26,32 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   Map<String, double> notasSliders = {};
   final Color primaryDark = const Color(0xFF1A237E);
 
+  // Keys para tutorial
+  final GlobalKey _keyPrimerAnalitico = GlobalKey();
+  final GlobalKey _keyValorDescriptor = GlobalKey();
+  final GlobalKey _keyNotaFinal = GlobalKey();
+  final GlobalKey _keyBtnGuardarEval = GlobalKey();
+
   @override
   void initState() {
     super.initState();
     _inicializarNotas();
+    // Iniciar tutorial
+    WidgetsBinding.instance.addPostFrameCallback((_) => _lanzarTutorial());
+  }
+
+  void _lanzarTutorial({bool force = false}) {
+    TutorialHelper().showTutorial(
+      context: context,
+      pageId: 'EJECUTAR_EVALUACION',
+      keys: {
+        'primer_analitico': _keyPrimerAnalitico,
+        'valor_descriptor': _keyValorDescriptor,
+        'nota_final': _keyNotaFinal,
+        'btn_guardar_eval': _keyBtnGuardarEval,
+      },
+      force: force,
+    );
   }
 
   void _inicializarNotas() {
@@ -80,7 +103,8 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
       double peso = double.tryParse(criterios[i]['peso'].toString()) ?? 1.0;
       total += (sumaCriterio * peso);
     }
-    return double.parse(total.toStringAsFixed(2));
+    double finalResult = total.clamp(0.0, 1.0);
+    return double.parse(finalResult.toStringAsFixed(2));
   }
 
   Future<void> _guardarEvaluacion() async {
@@ -126,8 +150,8 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
       await FirebaseFirestore.instance
           .collection('artifacts/rubrica_evaluator/users/$userId/evaluaciones')
           .add({
-        'estudiante': widget.estudiante,
-        'nombre': widget.nombre,
+        'estudiante': widget.estudiante.toUpperCase(),
+        'nombre': widget.nombre.toUpperCase(),
         'notaFinal': _calcularNotaFinal(),
         'fecha': FieldValue.serverTimestamp(),
         'criterios': estructuraAEnviar,
@@ -146,11 +170,29 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        title: Text("Calificando a: ${widget.estudiante}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        toolbarHeight: 120,
+        title: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              widget.nombre.toUpperCase(),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "ESTUDIANTE: ${widget.estudiante.toUpperCase()}",
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ],
+        ),
         backgroundColor: primaryDark,
         foregroundColor: Colors.white,
-        centerTitle: true, // Centrado también en la pantalla de calificación
-        actions: [AuthHelper.logoutButton(context)],
+        centerTitle: true,
+        actions: [
+          TutorialHelper.helpButton(context, () => _lanzarTutorial(force: true)),
+          AuthHelper.logoutButton(context)
+        ],
       ),
       body: Column(
         children: [
@@ -190,17 +232,26 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                             ...analiticos.asMap().entries.map((aEntry) {
                               int k = aEntry.key;
                               var ana = aEntry.value;
+                              // Capturamos el primer slider de la pantalla para el tutorial
+                              bool esElPrimero = (i == 0 && j == 0 && k == 0);
                               return Column(
+                                key: esElPrimero ? _keyPrimerAnalitico : null,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(ana['nombre'] ?? "Analítico", style: const TextStyle(fontWeight: FontWeight.w500)),
                                   Row(
                                     children: [
                                       Expanded(
-                                        child: Slider(
-                                          value: _getNota(i, j, k),
-                                          activeColor: const Color(0xFF00796B),
-                                          onChanged: (v) => setState(() => notasSliders["$i-$j-$k"] = v),
+                                        child: SliderTheme(
+                                          data: SliderTheme.of(context).copyWith(
+                                            inactiveTrackColor: Colors.black38,
+                                            activeTrackColor: const Color(0xFF00796B),
+                                            thumbColor: const Color(0xFF00796B),
+                                          ),
+                                          child: Slider(
+                                            value: _getNota(i, j, k),
+                                            onChanged: (v) => setState(() => notasSliders["$i-$j-$k"] = v),
+                                          ),
                                         ),
                                       ),
                                       Container(
@@ -216,6 +267,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                               );
                             }).toList(),
                             Container(
+                              key: (i == 0 && j == 0) ? _keyValorDescriptor : null,
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                               child: Text(
@@ -242,9 +294,14 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("NOTA FINAL: ${_calcularNotaFinal()}", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryDark)),
+                Text(
+                    "NOTA FINAL: ${_calcularNotaFinal()}",
+                    key: _keyNotaFinal,
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryDark)
+                ),
                 const SizedBox(height: 15),
                 ElevatedButton(
+                  key: _keyBtnGuardarEval,
                   onPressed: _guardarEvaluacion,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryDark,

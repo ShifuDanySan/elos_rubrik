@@ -22,6 +22,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
   final GlobalKey _keyCardNota = GlobalKey();
   final GlobalKey _keyBtnPdf = GlobalKey();
   final GlobalKey _keyDesgloseCriterio = GlobalKey();
+  final GlobalKey _keyBtnInfo = GlobalKey();
 
   @override
   void initState() {
@@ -39,12 +40,12 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
         'card_nota': _keyCardNota,
         'btn_pdf': _keyBtnPdf,
         'desglose_criterio': _keyDesgloseCriterio,
+        'btn_info': _keyBtnInfo,
       },
       force: force,
     );
   }
 
-  // DIÁLOGO TÉCNICO PROFESIONAL
   void _mostrarExplicacionLCD() {
     showDialog(
       context: context,
@@ -136,6 +137,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            key: _keyBtnInfo,
             icon: const Icon(Icons.info_outline),
             onPressed: _mostrarExplicacionLCD,
             tooltip: "Ver lógica de cálculo",
@@ -263,14 +265,18 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
         title: Text(criterio['nombre'] ?? 'Criterio',
             style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
         trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: _primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
             notaCriterio.toStringAsFixed(2),
-            style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor),
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              color: _primaryColor,
+              fontSize: 18, // PESO TOTAL DEL CRITERIO MÁS GRANDE
+            ),
           ),
         ),
         children: descriptores.map((desc) {
@@ -299,7 +305,11 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
                       const Icon(Icons.chevron_right, size: 14, color: _primaryColor),
                       Expanded(child: Text(ana['nombre'], style: const TextStyle(fontSize: 13))),
                       Text("${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primaryColor)),
+                          style: const TextStyle(
+                              fontSize: 13, // PESO DE ANALÍTICOS MÁS PEQUEÑO
+                              fontWeight: FontWeight.bold,
+                              color: _primaryColor
+                          )),
                     ],
                   ),
                 )).toList(),

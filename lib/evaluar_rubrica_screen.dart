@@ -250,13 +250,11 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       ),
       child: Column(
         children: [
-          // CABECERA CON CENTRADO ABSOLUTO USANDO STACK
           SizedBox(
             height: 50,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Icono de volver a la izquierda
                 Positioned(
                   left: 10,
                   child: IconButton(
@@ -264,10 +262,9 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
-                // TÍTULO CENTRADO
                 Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 110), // Espacio para que no choque con botones laterales
+                    padding: const EdgeInsets.symmetric(horizontal: 110),
                     child: Text(
                       widget.nombreRubrica.toUpperCase(),
                       textAlign: TextAlign.center,
@@ -277,7 +274,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                     ),
                   ),
                 ),
-                // Acciones a la derecha con margen para evitar recorte
                 Positioned(
                   right: 15,
                   child: Row(
@@ -542,9 +538,9 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     final userId = FirebaseAuth.instance.currentUser?.uid;
     String nombreEstudiante;
     if (_tabController.index == 0) {
-      nombreEstudiante = "${_estudianteSeleccionado!['nombre']} ${_estudianteSeleccionado!['apellido']}";
+      nombreEstudiante = "${_estudianteSeleccionado!['nombre']} ${_estudianteSeleccionado!['apellido']} (${_estudianteSeleccionado!['dni']})";
     } else {
-      nombreEstudiante = "${_nombreCtrl.text.trim()} ${_apellidoCtrl.text.trim()}";
+      nombreEstudiante = "${_nombreCtrl.text.trim()} ${_apellidoCtrl.text.trim()} (${_dniCtrl.text.trim()})";
     }
 
     try {
@@ -559,7 +555,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
 
       if (!mounted) return;
 
-      Navigator.push(
+      await Navigator.push(
           context,
           MaterialPageRoute(
               builder: (_) => EjecutarEvaluacionScreen(
@@ -570,6 +566,15 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
               )
           )
       );
+
+      if (mounted) {
+        setState(() {
+          _nombreCtrl.clear();
+          _apellidoCtrl.clear();
+          _dniCtrl.clear();
+          _estudianteSeleccionado = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

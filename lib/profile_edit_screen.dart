@@ -6,8 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'auth_helper.dart';
+import 'tutorial_helper.dart';
 
-// Volvemos a tus constantes de estilo originales
 const Color _primaryColor = Color(0xFF3949AB);
 const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFE1BEE7);
@@ -21,6 +21,12 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  // Keys para el tutorial
+  final GlobalKey _keyAvatar = GlobalKey();
+  final GlobalKey _keyCamposFijos = GlobalKey();
+  final GlobalKey _keyBotonGuardar = GlobalKey();
+
   bool _isLoading = true;
   bool _isSaving = false;
   bool _mostrarPassword = false;
@@ -77,10 +83,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         });
       }
     }
-    // El cursor empieza en el primer campo
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
+      _showTutorial();
     });
+  }
+
+  void _showTutorial({bool force = false}) {
+    TutorialHelper().showTutorial(
+      context: context,
+      pageId: 'EDITAR_PERFIL',
+      keys: {
+        'avatar': _keyAvatar,
+        'campos_fijos': _keyCamposFijos,
+        'boton_guardar': _keyBotonGuardar,
+      },
+      force: force,
+    );
   }
 
   Future<void> _cambiarFoto() async {
@@ -136,13 +156,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
+          TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           AuthHelper.logoutButton(context),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        // Compactamos para evitar el scroll innecesario
         child: Column(
           children: [
             Container(
@@ -157,7 +177,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             const SizedBox(height: 20),
             Center(
               child: Container(
-                width: 500, // Ancho igual a login_register_screen
+                width: 500,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Card(
                   elevation: 6,
@@ -171,14 +191,22 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         children: [
                           _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
                           _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
-                          _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
-                          _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
+                          Container(
+                            key: _keyCamposFijos,
+                            child: Column(
+                              children: [
+                                _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
+                                _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
+                              ],
+                            ),
+                          ),
                           const Divider(height: 25, thickness: 1),
                           _buildField(_passwordController, "Nueva Contraseña", Icons.lock_outline, _passFocus, _confirmPassFocus, isPass: true),
                           _buildField(_confirmPasswordController, "Confirmar Contraseña", Icons.lock_open_outlined, _confirmPassFocus, _botonGuardarFocus, isPass: true,
                               validator: (v) => (v != _passwordController.text) ? 'No coinciden' : null),
                           const SizedBox(height: 10),
                           ElevatedButton(
+                            key: _keyBotonGuardar,
                             focusNode: _botonGuardarFocus,
                             onPressed: _isSaving ? null : _onSave,
                             style: ElevatedButton.styleFrom(
@@ -207,6 +235,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Widget _buildAvatar() {
     return GestureDetector(
+      key: _keyAvatar,
       onTap: _isSaving ? null : _cambiarFoto,
       child: Stack(
         alignment: Alignment.center,
