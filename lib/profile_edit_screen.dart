@@ -19,9 +19,10 @@ class ProfileEditScreen extends StatefulWidget {
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
-class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindingObserver {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindingObserver, TickerProviderStateMixin {
+  late AnimationController _animController;
 
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final GlobalKey _keyAvatar = GlobalKey();
   final GlobalKey _keyCamposFijos = GlobalKey();
   final GlobalKey _keyBotonGuardar = GlobalKey();
@@ -50,12 +51,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    // Iniciar el bucle con pausa
+    _iniciarAnimacionConPausa();
+
     WidgetsBinding.instance.addObserver(this);
     _cargarDatos();
   }
 
+  // Lógica para reducir el tiempo de espera entre vueltas
+  void _iniciarAnimacionConPausa() async {
+    while (mounted) {
+      await _animController.forward(from: 0.0);
+      // Aquí controlas el tiempo de espera (reducido a 200ms)
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
   @override
   void dispose() {
+    _animController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _nombreController.dispose();
     _apellidoController.dispose();
@@ -72,17 +91,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
   }
 
   @override
-  void didChangeMetrics() {
-    TutorialHelper().forceClose();
-  }
+  void didChangeMetrics() => TutorialHelper().forceClose();
 
   String _formatearDNI(String dniRaw) {
     String numeros = dniRaw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (numeros.length == 8) {
-      return '${numeros.substring(0, 2)}.${numeros.substring(2, 5)}.${numeros.substring(5, 8)}';
-    } else if (numeros.length == 7) {
-      return '${numeros.substring(0, 1)}.${numeros.substring(1, 4)}.${numeros.substring(4, 7)}';
-    }
+    if (numeros.length == 8) return '${numeros.substring(0, 2)}.${numeros.substring(2, 5)}.${numeros.substring(5, 8)}';
+    if (numeros.length == 7) return '${numeros.substring(0, 1)}.${numeros.substring(1, 4)}.${numeros.substring(4, 7)}';
     return numeros;
   }
 
@@ -95,30 +109,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
         setState(() {
           _nombreController.text = data['nombre'] ?? '';
           _apellidoController.text = data['apellido'] ?? '';
-          String dniRaw = data['dni'] ?? '';
-          _dniController.text = _formatearDNI(dniRaw);
+          _dniController.text = _formatearDNI(data['dni'] ?? '');
           _emailController.text = data['email'] ?? '';
           _photoUrl = data['photoUrl'];
           _isLoading = false;
         });
       }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
-    });
-  }
-
-  void _showTutorial({bool force = false}) {
-    TutorialHelper().showTutorial(
-      context: context,
-      pageId: 'PERFIL',
-      keys: {
-        'foto_perfil': _keyAvatar,
-        'campos_datos': _keyCamposFijos,
-        'boton_guardar': _keyBotonGuardar,
-      },
-      force: force,
-    );
   }
 
   Future<void> _cambiarFoto() async {
@@ -128,45 +125,28 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
       if (image == null) return;
 
       setState(() => _isSaving = true);
-
-      // --- CAMBIO AQUÍ: Usamos await para asegurar que cargamos la imagen antes de seguir ---
-      Uint8List? webBytes;
-      File? mobileFile;
-
-      if (kIsWeb) {
-        webBytes = await image.readAsBytes();
-      } else {
-        mobileFile = File(image.path);
-      }
-
-      setState(() {
-        _imageDataWeb = webBytes;
-        _imageFileMobile = mobileFile;
-      });
-
       final user = FirebaseAuth.instance.currentUser;
-      final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user!.uid}.jpg');
+      if (user == null) return;
+
+      final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user.uid}.jpg');
 
       if (kIsWeb) {
-        await storageRef.putData(_imageDataWeb!);
+        final bytes = await image.readAsBytes();
+        await storageRef.putData(bytes);
+        setState(() => _imageDataWeb = bytes);
       } else {
-        await storageRef.putFile(_imageFileMobile!);
+        final file = File(image.path);
+        await storageRef.putFile(file);
+        setState(() => _imageFileMobile = file);
       }
 
       final String downloadUrl = await storageRef.getDownloadURL();
       await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({'photoUrl': downloadUrl});
-
-      setState(() {
-        _photoUrl = downloadUrl;
-        _isSaving = false;
-      });
-
+      setState(() => _photoUrl = downloadUrl);
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    } finally {
       setState(() => _isSaving = false);
-      debugPrint("ERROR DETALLADO: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error al subir imagen: $e"), backgroundColor: Colors.red)
-      );
     }
   }
 
@@ -179,15 +159,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
         'nombre': _nombreController.text.trim(),
         'apellido': _apellidoController.text.trim(),
       });
-      if (_passwordController.text.isNotEmpty) {
-        await user.updatePassword(_passwordController.text.trim());
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Perfil actualizado"), backgroundColor: Colors.green));
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error al guardar cambios"), backgroundColor: Colors.red));
+      if (_passwordController.text.isNotEmpty) await user.updatePassword(_passwordController.text.trim());
+      if (mounted) Navigator.pop(context);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -197,128 +170,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundColor,
-      appBar: AppBar(
-        title: const Text("Editar Perfil", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: _primaryColor,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        actions: [
-          TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
-          AuthHelper.logoutButton(context),
-        ],
-      ),
+      appBar: AppBar(title: const Text("Editar Perfil"), backgroundColor: _primaryColor, foregroundColor: Colors.white),
       body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         child: Column(
           children: [
-            Container(
-              height: 90,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: _primaryColor,
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)),
-              ),
-              child: Center(child: _buildAvatar()),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                width: 500,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                  elevation: 6,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 15, 24, 15),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
-                          _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
-                          Container(
-                            key: _keyCamposFijos,
-                            child: Column(
-                              children: [
-                                _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
-                                _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 25),
-                          _buildField(_passwordController, "Nueva Contraseña", Icons.lock_outline, _passFocus, _confirmPassFocus, isPass: true),
-                          _buildField(_confirmPasswordController, "Confirmar Contraseña", Icons.lock_open_outlined, _confirmPassFocus, _botonGuardarFocus, isPass: true,
-                              validator: (v) => (v != _passwordController.text) ? 'No coinciden' : null),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            key: _keyBotonGuardar,
-                            focusNode: _botonGuardarFocus,
-                            onPressed: _isSaving ? null : _onSave,
-                            style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(55)),
-                            child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text("GUARDAR CAMBIOS"),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            Container(height: 90, color: _primaryColor, child: Center(child: _buildAvatar())),
+            Card(margin: const EdgeInsets.all(16), child: Padding(padding: const EdgeInsets.all(16), child: Form(key: _formKey, child: Column(children: [
+              _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
+              _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
+              _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
+              _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
+              const SizedBox(height: 20),
+              ElevatedButton(key: _keyBotonGuardar, onPressed: _isSaving ? null : _onSave, child: _isSaving ? const CircularProgressIndicator() : const Text("GUARDAR CAMBIOS")),
+            ])))),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAvatar() {
-    return GestureDetector(
-      key: _keyAvatar,
-      onTap: _isSaving ? null : _cambiarFoto,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-            child: CircleAvatar(
-              radius: 38,
-              backgroundColor: Colors.white,
-              child: ClipOval(child: _buildImageWidget()),
-            ),
-          ),
-          Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 13, backgroundColor: _accentColor, child: const Icon(Icons.camera_alt, size: 14, color: Colors.white))),
-        ],
-      ),
-    );
-  }
+  Widget _buildAvatar() => GestureDetector(key: _keyAvatar, onTap: _isSaving ? null : _cambiarFoto, child: CircleAvatar(radius: 38, backgroundColor: Colors.white, child: ClipOval(child: _buildImageWidget())));
 
   Widget _buildImageWidget() {
-    const double imgSize = 76;
-    if (kIsWeb && _imageDataWeb != null) return Image.memory(_imageDataWeb!, width: imgSize, height: imgSize, fit: BoxFit.cover);
-    if (!kIsWeb && _imageFileMobile != null) return Image.file(_imageFileMobile!, width: imgSize, height: imgSize, fit: BoxFit.cover);
-    if (_photoUrl != null && _photoUrl!.isNotEmpty) {
-      return Image.network(_photoUrl!, width: imgSize, height: imgSize, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.person, size: 40, color: _primaryColor));
-    }
-    return const Icon(Icons.person, size: 40, color: _primaryColor);
+    if (kIsWeb && _imageDataWeb != null) return Image.memory(_imageDataWeb!, width: 76, height: 76, fit: BoxFit.cover);
+    if (!kIsWeb && _imageFileMobile != null) return Image.file(_imageFileMobile!, width: 76, height: 76, fit: BoxFit.cover);
+    if (_photoUrl != null && _photoUrl!.isNotEmpty) return Image.network(_photoUrl!, width: 76, height: 76, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person));
+    return const Icon(Icons.person, size: 40);
   }
 
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon, FocusNode? current, FocusNode? next, {bool enabled = true, bool isPass = false, String? Function(String?)? validator}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextFormField(
-        controller: ctrl,
-        focusNode: current,
-        readOnly: !enabled,
-        obscureText: isPass && !_mostrarPassword,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: _primaryColor.withOpacity(0.7)),
-          filled: true,
-          fillColor: enabled ? Colors.white : Colors.grey[100],
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          suffixIcon: isPass ? IconButton(icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off), onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword)) : null,
-        ),
-        validator: validator,
-        onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,
-      ),
-    );
-  }
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon, FocusNode? current, FocusNode? next, {bool enabled = true}) => Padding(padding: const EdgeInsets.only(bottom: 10), child: TextFormField(controller: ctrl, enabled: enabled, decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon))));
 }
