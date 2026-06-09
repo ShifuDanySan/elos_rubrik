@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'detalle_evaluacion_screen.dart';
 import 'auth_helper.dart';
-import 'tutorial_helper.dart'; // Importante importar el helper
+import 'tutorial_helper.dart';
 
 class ListaEvaluacionesScreen extends StatefulWidget {
   const ListaEvaluacionesScreen({super.key});
@@ -18,7 +18,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   DateTime? _fechaFiltro;
   String _filtroEstudiante = "";
 
-  // KEYS PARA EL TUTORIAL
   final GlobalKey _keyBuscadorEstudiante = GlobalKey();
   final GlobalKey _keyFiltroCalendario = GlobalKey();
   final GlobalKey _keyPrimeraEvaluacion = GlobalKey();
@@ -26,7 +25,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   @override
   void initState() {
     super.initState();
-    // Ejecutar tutorial después de que el frame se renderice
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showTutorial();
     });
@@ -90,10 +88,9 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          // BOTÓN DE AYUDA PARA REPETIR TUTORIAL
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           IconButton(
-            key: _keyFiltroCalendario, // KEY PARA EL CALENDARIO
+            key: _keyFiltroCalendario,
             icon: const Icon(Icons.calendar_today),
             onPressed: () async {
               final picked = await showDatePicker(
@@ -115,7 +112,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
-              key: _keyBuscadorEstudiante, // KEY PARA EL BUSCADOR
+              key: _keyBuscadorEstudiante,
               decoration: InputDecoration(
                 hintText: "Buscar estudiante...",
                 prefixIcon: const Icon(Icons.person_search, color: primaryColor),
@@ -181,7 +178,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                         : "S/F";
 
                     return Card(
-                      // KEY PARA LA PRIMERA CARD DE LA LISTA
                       key: index == 0 ? _keyPrimeraEvaluacion : null,
                       child: ListTile(
                         leading: CircleAvatar(

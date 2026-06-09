@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as excel_lib;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
@@ -33,7 +32,7 @@ class EvaluarRubricaScreen extends StatefulWidget {
   State<EvaluarRubricaScreen> createState() => _EvaluarRubricaScreenState();
 }
 
-class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with TickerProviderStateMixin {
+class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
@@ -60,6 +59,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
 
     _glowController = AnimationController(
@@ -75,7 +75,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       setState(() {});
       if (_tabController.index == 1 && !_tabController.indexIsChanging) {
         Future.delayed(const Duration(milliseconds: 100), () {
-          _nombreFocus.requestFocus();
+          if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
         });
       }
     });
@@ -85,6 +85,24 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     _dniCtrl.addListener(() => setState(() {}));
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _iniciarTutorial());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tabController.dispose();
+    _glowController.dispose();
+    _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _dniCtrl.dispose();
+    _nombreFocus.dispose(); _apellidoFocus.dispose(); _dniFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    TutorialHelper().forceClose();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) TutorialHelper().reShowLastTutorial(context);
+    });
   }
 
   void _iniciarTutorial({bool force = false}) {
@@ -107,17 +125,8 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     } else {
       return _nombreCtrl.text.trim().isNotEmpty &&
           _apellidoCtrl.text.trim().isNotEmpty &&
-          _dniCtrl.text.replaceAll('.', '').length == 8;
+          _dniCtrl.text.replaceAll('.', '').length >= 7;
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _glowController.dispose();
-    _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _dniCtrl.dispose();
-    _nombreFocus.dispose(); _apellidoFocus.dispose(); _dniFocus.dispose();
-    super.dispose();
   }
 
   void _descargarPlantilla() {
@@ -139,7 +148,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       final content = Uint8List.fromList(fileBytes);
       final blob = html.Blob([content], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)..setAttribute("download", "plantilla.xlsx")..click();
+      html.AnchorElement(href: url)..setAttribute("download", "plantilla_estudiantes.xlsx")..click();
       html.Url.revokeObjectUrl(url);
     }
   }
@@ -167,7 +176,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
         if (idxDni != -1 && idxNom != -1 && idxApe != -1) {
           for (int i = 1; i < sheet.maxRows; i++) {
             var row = sheet.rows[i];
-            if (row[idxDni] == null) continue;
+            if (row[idxDni] == null || row[idxDni]?.value == null) continue;
             temporal.add({
               'dni': row[idxDni]?.value.toString() ?? "",
               'nombre': row[idxNom]?.value.toString() ?? "",
@@ -210,10 +219,10 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
                 child: Container(
                   width: 500,
-                  margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  margin: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -222,7 +231,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: SizedBox(
-                      height: 480,
+                      height: 500,
                       child: TabBarView(
                         controller: _tabController,
                         children: [
@@ -314,23 +323,23 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
 
   Widget _buildExcelView() {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             children: [
               const Icon(Icons.file_present_rounded, size: 60, color: _primaryColor),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               Row(
                 key: _keyImportar,
                 children: [
                   Expanded(child: _buildSecondaryButton("PLANTILLA", Icons.download, _descargarPlantilla)),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(child: _buildPrimaryButton("IMPORTAR", Icons.upload_file, _importarExcel)),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
               AnimatedBuilder(
                 animation: _glowAnimation,
                 builder: (context, child) {
@@ -360,7 +369,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
 
   Widget _buildManualView() {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -368,7 +377,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
             children: [
               const Text("DATOS DEL ESTUDIANTE",
                   style: TextStyle(fontWeight: FontWeight.w900, color: _primaryColor, fontSize: 18)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
               _buildStyledField(
                 controller: _nombreCtrl,
                 label: 'Nombre',
@@ -414,7 +423,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     FocusNode? focusNode,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
         focusNode: focusNode,
@@ -439,7 +448,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
           filled: true,
           fillColor: Colors.white,
           counterText: '',
-          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         ),
       ),
     );
@@ -453,12 +462,12 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       style: ElevatedButton.styleFrom(
         backgroundColor: _buttonSuccessColor,
         disabledBackgroundColor: Colors.grey.shade400,
-        minimumSize: const Size(double.infinity, 55),
+        minimumSize: const Size(double.infinity, 60),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: activo ? 6 : 0,
       ),
       child: _cargando
-          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : Text("COMENZAR EVALUACIÓN",
           style: TextStyle(
               color: activo ? Colors.white : Colors.white70,
@@ -473,7 +482,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     return AnimatedContainer(
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOut,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: _estudiantesExcel.isNotEmpty ? _importSuccessColor : Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -511,7 +520,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       style: ElevatedButton.styleFrom(
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
@@ -525,7 +534,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       style: OutlinedButton.styleFrom(
         foregroundColor: _primaryColor,
         side: const BorderSide(color: _primaryColor, width: 2.0),
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );

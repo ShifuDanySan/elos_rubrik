@@ -14,10 +14,11 @@ class EditarRubricaScreen extends StatefulWidget {
   State<EditarRubricaScreen> createState() => _EditarRubricaScreenState();
 }
 
-class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
+class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsBindingObserver {
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
+  // Llaves de tutorial sincronizadas con TutorialHelper
   final GlobalKey _keySumaText = GlobalKey();
   final GlobalKey _keyBotonFisico = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
@@ -32,7 +33,22 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargarDatosIniciales();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    TutorialHelper().forceClose();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) TutorialHelper().reShowLastTutorial(context);
+    });
   }
 
   Future<void> _cargarDatosIniciales() async {
@@ -53,25 +69,23 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
 
   Future<void> _lanzarTutorial({bool force = false}) async {
     if (force) {
-      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA', 'EDITAR_DESCRIPTOR']);
+      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN', 'EDITAR_DESCRIPTOR']);
     }
-    Map<String, GlobalKey> tutorialKeys = {
-      'suma': _keySumaText,
-      'boton_add': _keyBotonFisico,
-      'boton_volver': _keyBotonFinalizar,
-    };
-    if (listaCriteriosLocal.isNotEmpty) {
-      tutorialKeys['primer_criterio'] = _keyPrimerCriterio;
-      tutorialKeys['editar_criterio'] = _keyPrimerEditCriterio;
-      tutorialKeys['primer_add_descriptor'] = _keyPrimerAddDescriptor;
 
-      final descs = listaCriteriosLocal[0]['descriptores'] as List;
-      if (descs.isNotEmpty) {
-        tutorialKeys['editar_descriptor'] = _keyEditDescriptorTutorial;
-      }
-    }
+    // Mapeo exacto según el TutorialHelper que definimos antes
+    Map<String, GlobalKey> tutorialKeys = {
+      'nombre_rubrica': _keySumaText, // Usamos la barra de estado como referencia de nombre/estado
+      'lista_criterios': _keyPrimerCriterio,
+      'btn_actualizar': _keyBotonFinalizar,
+    };
+
     if (mounted) {
-      TutorialHelper().showTutorial(context: context, pageId: 'EDITAR_RUBRICA', keys: tutorialKeys, force: force);
+      TutorialHelper().showTutorial(
+          context: context,
+          pageId: 'EDITAR_RUBRICA_SCREEN',
+          keys: tutorialKeys,
+          force: force
+      );
     }
   }
 

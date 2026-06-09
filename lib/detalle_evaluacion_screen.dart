@@ -18,17 +18,34 @@ class DetalleEvaluacionScreen extends StatefulWidget {
   State<DetalleEvaluacionScreen> createState() => _DetalleEvaluacionScreenState();
 }
 
-class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
-  final GlobalKey _keyCardNota = GlobalKey();
+class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with WidgetsBindingObserver {
+  // GlobalKeys sincronizadas con TutorialHelper
+  final GlobalKey _keyPuntajeTotal = GlobalKey();
+  final GlobalKey _keyTablaResumen = GlobalKey();
+  final GlobalKey _keyListaDesglosada = GlobalKey();
   final GlobalKey _keyBtnPdf = GlobalKey();
-  final GlobalKey _keyDesgloseCriterio = GlobalKey();
-  final GlobalKey _keyBtnInfo = GlobalKey();
+  final GlobalKey _keyBtnInfo = GlobalKey(); // Usada para compartir/info en el tutorial
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showTutorial();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    TutorialHelper().forceClose();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) TutorialHelper().reShowLastTutorial(context);
     });
   }
 
@@ -37,10 +54,11 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
       context: context,
       pageId: 'DETALLE_EVALUACION',
       keys: {
-        'card_nota': _keyCardNota,
+        'puntaje_total': _keyPuntajeTotal,
+        'tabla_resumen': _keyTablaResumen,
+        'lista_desglosada': _keyListaDesglosada,
         'btn_pdf': _keyBtnPdf,
-        'desglose_criterio': _keyDesgloseCriterio,
-        'btn_info': _keyBtnInfo,
+        'btn_compartir': _keyBtnInfo, // Mapeamos el botón de info como el paso de compartir/info
       },
       force: force,
     );
@@ -170,27 +188,30 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
               children: [
                 _buildInfoCard(estudiante, widget.evaluacion['nombre'] ?? 'Rúbrica', fechaStr, notaFinal),
                 const SizedBox(height: 25),
-                Row(
-                  children: [
-                    const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      "DESGLOSE DE RESULTADOS",
-                      style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: _primaryColor.withOpacity(0.8),
-                          fontSize: 13,
-                          letterSpacing: 1.2
+                Container(
+                  key: _keyTablaResumen,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "DESGLOSE DE RESULTADOS",
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: _primaryColor.withOpacity(0.8),
+                            fontSize: 13,
+                            letterSpacing: 1.2
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const Divider(thickness: 2, color: _primaryColor),
                 const SizedBox(height: 10),
                 ...criterios.asMap().entries.map((entry) {
                   int idx = entry.key;
                   var c = entry.value;
-                  return _buildCriterioTile(c, idx == 0 ? _keyDesgloseCriterio : null);
+                  return _buildCriterioTile(c, idx == 0 ? _keyListaDesglosada : null);
                 }).toList(),
               ],
             ),
@@ -202,7 +223,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
 
   Widget _buildInfoCard(String alumno, String rubrica, String fecha, double nota) {
     return Container(
-      key: _keyCardNota,
+      key: _keyPuntajeTotal,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -275,7 +296,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
             style: const TextStyle(
               fontWeight: FontWeight.w900,
               color: _primaryColor,
-              fontSize: 18, // PESO TOTAL DEL CRITERIO MÁS GRANDE
+              fontSize: 18,
             ),
           ),
         ),
@@ -306,7 +327,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
                       Expanded(child: Text(ana['nombre'], style: const TextStyle(fontSize: 13))),
                       Text("${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
                           style: const TextStyle(
-                              fontSize: 13, // PESO DE ANALÍTICOS MÁS PEQUEÑO
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                               color: _primaryColor
                           )),

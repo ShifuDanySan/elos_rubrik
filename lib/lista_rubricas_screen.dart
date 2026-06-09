@@ -20,7 +20,7 @@ class ListaRubricasScreen extends StatefulWidget {
 class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   DateTime? _fechaFiltro;
   String _filtroNombre = "";
-  bool _tutorialPresentado = false; // Bandera para evitar doble ejecución
+  bool _tutorialPresentado = false;
 
   final GlobalKey _keyBuscador = GlobalKey();
   final GlobalKey _keyFiltroFecha = GlobalKey();
@@ -175,7 +175,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
             ),
             child: TextField(
               key: _keyBuscador,
-              autofocus: true,
               decoration: InputDecoration(
                 hintText: "Buscar rúbrica...",
                 prefixIcon: const Icon(Icons.search, color: blueCrear),
@@ -193,7 +192,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 var docs = snapshot.data!.docs;
 
-                // CORRECCIÓN: Solo lanzar si hay datos y no se ha presentado en este ciclo de vida
                 if (docs.isNotEmpty && !_tutorialPresentado) {
                   _tutorialPresentado = true;
                   WidgetsBinding.instance.addPostFrameCallback((_) => _lanzarTutorial());

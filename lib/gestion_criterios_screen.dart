@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'add_criterio_screen.dart';
-import 'dart:math';
 import 'auth_helper.dart';
 
 // ===============================================
@@ -52,7 +51,7 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
     _fetchRubricaData();
   }
 
-  // Carga inicial de datos
+  // Carga inicial de datos desde Firestore
   void _fetchRubricaData() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -81,7 +80,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
     }
   }
 
-
   void _calcularPesoTotal() {
     double total = 0.0;
     for (var criterio in _criteriosPendientes) {
@@ -91,7 +89,7 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
   }
 
   // ----------------------------------------------------
-  // 🚀 FUNCIÓN DE GUARDADO FINAL CORREGIDA (Permite forzar 1.00)
+  // 🚀 FUNCIÓN DE GUARDADO FINAL (Permite forzar 1.00)
   // ----------------------------------------------------
   void _saveToFirestore() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -106,14 +104,10 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
 
     // 🛑 LÓGICA DE FORZADO: Si solo hay un criterio, forzar su peso a 1.00
     if (_criteriosPendientes.length == 1) {
-      // Usamos .abs() < _tolerance para ver si ya es 1.00 o no
       if ((_pesoTotalNotifier.value - 1.00).abs() >= _tolerance) {
-        // Se aplica la corrección
         _criteriosPendientes[0]['peso'] = 1.00;
-        // Se actualiza el notificador de peso total para reflejar el cambio en la UI
         _pesoTotalNotifier.value = 1.00;
 
-        // Opcional: Mostrar un mensaje informativo
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Peso del único criterio ajustado automáticamente a 1.00.'), backgroundColor: primaryColor),
@@ -125,7 +119,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // RUTA DE FIRESTORE CORREGIDA Y SEGURA
       await FirebaseFirestore.instance
           .collection('artifacts')
           .doc(__app_id)
@@ -135,7 +128,7 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
           .doc(widget.rubricaId)
           .update({
         'criterios': _criteriosPendientes,
-        'pesoTotalCriterios': _pesoTotalNotifier.value, // Ahora es 1.00 si se forzó
+        'pesoTotalCriterios': _pesoTotalNotifier.value,
         'fechaActualizacion': FieldValue.serverTimestamp(),
       });
 
@@ -157,7 +150,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
       }
     }
   }
-  // ----------------------------------------------------
 
   void _navigateToAddCriterio() async {
     final nuevoCriterio = await Navigator.of(context).push(
@@ -186,26 +178,20 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Verifica si el peso total es válido (igual a 1.00 +/- una pequeña tolerancia)
     final bool pesoValido = (_pesoTotalNotifier.value - 1.00).abs() < _tolerance;
     final bool soloUnCriterio = _criteriosPendientes.length == 1;
-
-    // 🛑 LÓGICA DE HABILITACIÓN DEL BOTÓN CORREGIDA
-    // El botón se habilita si: (peso es válido) O (solo hay un criterio).
     final bool puedeGuardar = (pesoValido || soloUnCriterio) && _criteriosPendientes.isNotEmpty && !_isSaving;
 
-    // Etiqueta del botón
     String botonLabel;
     if (_isSaving) {
       botonLabel = 'Guardando...';
     } else if (pesoValido) {
       botonLabel = 'Guardar Rúbrica Final';
     } else if (soloUnCriterio) {
-      botonLabel = 'Guardar y Forzar Peso a 1.00 (Criterio Único)'; // ⬅️ Mensaje claro
+      botonLabel = 'Guardar y Forzar Peso a 1.00 (Criterio Único)';
     } else {
       botonLabel = 'Ajustar peso a 1.00 para guardar';
     }
-
 
     return Scaffold(
       appBar: AppBar(
@@ -213,7 +199,7 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          AuthHelper.logoutButton(context), // <--- Añadir aquí
+          AuthHelper.logoutButton(context),
         ],
       ),
       body: Center(
@@ -269,7 +255,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
                           icon: const Icon(Icons.delete_forever, color: errorColor),
                           onPressed: () => _eliminarCriterio(index),
                         ),
-                        // Aquí podrías añadir una navegación a edición si es necesario
                       ),
                     );
                   },
@@ -285,7 +270,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Botón Añadir
                     ElevatedButton.icon(
                       onPressed: _navigateToAddCriterio,
                       icon: const Icon(Icons.add, size: 24),
@@ -297,8 +281,6 @@ class _GestionCriteriosScreenState extends State<GestionCriteriosScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
-                    // Botón Guardar Rúbrica
                     ElevatedButton.icon(
                       onPressed: puedeGuardar ? _saveToFirestore : null,
                       icon: _isSaving

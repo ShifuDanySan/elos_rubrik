@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
@@ -19,10 +19,9 @@ class ProfileEditScreen extends StatefulWidget {
   State<ProfileEditScreen> createState() => _ProfileEditScreenState();
 }
 
-class _ProfileEditScreenState extends State<ProfileEditScreen> {
+class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindingObserver {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Keys para el tutorial
   final GlobalKey _keyAvatar = GlobalKey();
   final GlobalKey _keyCamposFijos = GlobalKey();
   final GlobalKey _keyBotonGuardar = GlobalKey();
@@ -31,6 +30,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   bool _isSaving = false;
   bool _mostrarPassword = false;
   String? _photoUrl;
+
+  Uint8List? _imageDataWeb;
+  File? _imageFileMobile;
 
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _apellidoController = TextEditingController();
@@ -48,11 +50,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargarDatos();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nombreController.dispose();
     _apellidoController.dispose();
     _dniController.dispose();
@@ -67,6 +71,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeMetrics() {
+    TutorialHelper().forceClose();
+  }
+
+  String _formatearDNI(String dniRaw) {
+    String numeros = dniRaw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numeros.length == 8) {
+      return '${numeros.substring(0, 2)}.${numeros.substring(2, 5)}.${numeros.substring(5, 8)}';
+    } else if (numeros.length == 7) {
+      return '${numeros.substring(0, 1)}.${numeros.substring(1, 4)}.${numeros.substring(4, 7)}';
+    }
+    return numeros;
+  }
+
   Future<void> _cargarDatos() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -76,27 +95,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         setState(() {
           _nombreController.text = data['nombre'] ?? '';
           _apellidoController.text = data['apellido'] ?? '';
-          _dniController.text = data['dni'] ?? '';
+          String dniRaw = data['dni'] ?? '';
+          _dniController.text = _formatearDNI(dniRaw);
           _emailController.text = data['email'] ?? '';
           _photoUrl = data['photoUrl'];
           _isLoading = false;
         });
       }
     }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_nombreFocus.canRequestFocus) _nombreFocus.requestFocus();
-      _showTutorial();
     });
   }
 
   void _showTutorial({bool force = false}) {
     TutorialHelper().showTutorial(
       context: context,
-      pageId: 'EDITAR_PERFIL',
+      pageId: 'PERFIL',
       keys: {
-        'avatar': _keyAvatar,
-        'campos_fijos': _keyCamposFijos,
+        'foto_perfil': _keyAvatar,
+        'campos_datos': _keyCamposFijos,
         'boton_guardar': _keyBotonGuardar,
       },
       force: force,
@@ -108,18 +126,48 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     try {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 400, maxHeight: 400);
       if (image == null) return;
+
       setState(() => _isSaving = true);
+
+      // --- CAMBIO AQUÍ: Usamos await para asegurar que cargamos la imagen antes de seguir ---
+      Uint8List? webBytes;
+      File? mobileFile;
+
+      if (kIsWeb) {
+        webBytes = await image.readAsBytes();
+      } else {
+        mobileFile = File(image.path);
+      }
+
+      setState(() {
+        _imageDataWeb = webBytes;
+        _imageFileMobile = mobileFile;
+      });
+
       final user = FirebaseAuth.instance.currentUser;
       final storageRef = FirebaseStorage.instance.ref().child('perfiles/${user!.uid}.jpg');
+
       if (kIsWeb) {
-        await storageRef.putData(await image.readAsBytes());
+        await storageRef.putData(_imageDataWeb!);
       } else {
-        await storageRef.putFile(File(image.path));
+        await storageRef.putFile(_imageFileMobile!);
       }
+
       final String downloadUrl = await storageRef.getDownloadURL();
       await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({'photoUrl': downloadUrl});
-      setState(() { _photoUrl = downloadUrl; _isSaving = false; });
-    } catch (e) { setState(() => _isSaving = false); }
+
+      setState(() {
+        _photoUrl = downloadUrl;
+        _isSaving = false;
+      });
+
+    } catch (e) {
+      setState(() => _isSaving = false);
+      debugPrint("ERROR DETALLADO: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error al subir imagen: $e"), backgroundColor: Colors.red)
+      );
+    }
   }
 
   Future<void> _onSave() async {
@@ -153,16 +201,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         title: const Text("Editar Perfil", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        elevation: 0,
         centerTitle: true,
         actions: [
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           AuthHelper.logoutButton(context),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         child: Column(
           children: [
             Container(
@@ -187,7 +232,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
                           _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
@@ -200,7 +244,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                               ],
                             ),
                           ),
-                          const Divider(height: 25, thickness: 1),
+                          const Divider(height: 25),
                           _buildField(_passwordController, "Nueva Contraseña", Icons.lock_outline, _passFocus, _confirmPassFocus, isPass: true),
                           _buildField(_confirmPasswordController, "Confirmar Contraseña", Icons.lock_open_outlined, _confirmPassFocus, _botonGuardarFocus, isPass: true,
                               validator: (v) => (v != _passwordController.text) ? 'No coinciden' : null),
@@ -209,15 +253,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             key: _keyBotonGuardar,
                             focusNode: _botonGuardarFocus,
                             onPressed: _isSaving ? null : _onSave,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryColor,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(55),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: _isSaving
-                                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text("GUARDAR CAMBIOS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(55)),
+                            child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text("GUARDAR CAMBIOS"),
                           ),
                         ],
                       ),
@@ -226,7 +263,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -241,29 +277,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         alignment: Alignment.center,
         children: [
           Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
             child: CircleAvatar(
               radius: 38,
               backgroundColor: Colors.white,
-              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-              child: _photoUrl == null ? const Icon(Icons.person, size: 40, color: _primaryColor) : null,
+              child: ClipOval(child: _buildImageWidget()),
             ),
           ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: CircleAvatar(
-              radius: 13,
-              backgroundColor: _accentColor,
-              child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
-            ),
-          ),
+          Positioned(bottom: 0, right: 0, child: CircleAvatar(radius: 13, backgroundColor: _accentColor, child: const Icon(Icons.camera_alt, size: 14, color: Colors.white))),
         ],
       ),
     );
+  }
+
+  Widget _buildImageWidget() {
+    const double imgSize = 76;
+    if (kIsWeb && _imageDataWeb != null) return Image.memory(_imageDataWeb!, width: imgSize, height: imgSize, fit: BoxFit.cover);
+    if (!kIsWeb && _imageFileMobile != null) return Image.file(_imageFileMobile!, width: imgSize, height: imgSize, fit: BoxFit.cover);
+    if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+      return Image.network(_photoUrl!, width: imgSize, height: imgSize, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.person, size: 40, color: _primaryColor));
+    }
+    return const Icon(Icons.person, size: 40, color: _primaryColor);
   }
 
   Widget _buildField(TextEditingController ctrl, String label, IconData icon, FocusNode? current, FocusNode? next, {bool enabled = true, bool isPass = false, String? Function(String?)? validator}) {
@@ -274,18 +308,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         focusNode: current,
         readOnly: !enabled,
         obscureText: isPass && !_mostrarPassword,
-        style: const TextStyle(fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          prefixIcon: Icon(icon, color: _primaryColor.withOpacity(0.7), size: 22),
+          prefixIcon: Icon(icon, color: _primaryColor.withOpacity(0.7)),
           filled: true,
           fillColor: enabled ? Colors.white : Colors.grey[100],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          suffixIcon: isPass ? IconButton(
-            icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off, size: 22),
-            onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword),
-          ) : null,
+          suffixIcon: isPass ? IconButton(icon: Icon(_mostrarPassword ? Icons.visibility : Icons.visibility_off), onPressed: () => setState(() => _mostrarPassword = !_mostrarPassword)) : null,
         ),
         validator: validator,
         onFieldSubmitted: (_) => next != null ? FocusScope.of(context).requestFocus(next) : null,

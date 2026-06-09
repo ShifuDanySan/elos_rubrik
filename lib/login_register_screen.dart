@@ -12,7 +12,7 @@ const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFE1BEE7);
 
 // ===============================================
-// WIDGET AUXILIAR: Fondo Animado Flotante
+// WIDGET AUXILIAR: Fondo Estático de Figuras Fijas
 // ===============================================
 
 class FloatingShapesBackground extends StatefulWidget {
@@ -44,9 +44,10 @@ class _FloatingShapesBackgroundState extends State<FloatingShapesBackground> {
       final bool isSquare = _random.nextBool();
       final double size = 30.0 + _random.nextDouble() * 120.0;
       final Color color = _random.nextBool() ? _primaryColor : _accentColor;
-      final Duration duration = Duration(seconds: 15 + _random.nextInt(20));
       final double initialX = -0.5 + _random.nextDouble() * 2.0;
       final double initialY = -0.5 + _random.nextDouble() * 2.0;
+      final double staticRotation = _random.nextDouble() * math.pi / 2;
+      final double staticOpacity = 0.2 + (_random.nextDouble() * 0.4);
 
       _floatingShapes.add(
         PositionedShape(
@@ -55,8 +56,9 @@ class _FloatingShapesBackgroundState extends State<FloatingShapesBackground> {
           initialPositionY: initialY,
           size: size,
           color: color,
-          duration: duration,
           isSquare: isSquare,
+          rotation: staticRotation,
+          opacity: staticOpacity,
         ),
       );
     }
@@ -74,88 +76,49 @@ class _FloatingShapesBackgroundState extends State<FloatingShapesBackground> {
   }
 }
 
-class PositionedShape extends StatefulWidget {
+class PositionedShape extends StatelessWidget {
   final double size;
   final Color color;
-  final Duration duration;
   final bool isSquare;
   final double initialPositionX;
   final double initialPositionY;
+  final double rotation;
+  final double opacity;
 
   const PositionedShape({
     super.key,
     required this.size,
     required this.color,
-    required this.duration,
     required this.isSquare,
     required this.initialPositionX,
     required this.initialPositionY,
+    required this.rotation,
+    required this.opacity,
   });
-
-  @override
-  State<PositionedShape> createState() => _PositionedShapeState();
-}
-
-class _PositionedShapeState extends State<PositionedShape> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  final Random _random = Random();
-  late double _sinOffset;
-  late double _cosOffset;
-  final double _motionRange = 100.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _sinOffset = _random.nextDouble() * math.pi * 2;
-    _cosOffset = _random.nextDouble() * math.pi * 2;
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Offset getMotionOffset(double animationValue) {
-    final dx = math.sin(animationValue * 2 * math.pi + _sinOffset) * _motionRange / 2;
-    final dy = math.cos(animationValue * 2 * math.pi + _cosOffset) * _motionRange / 2;
-    return Offset(dx, dy);
-  }
 
   @override
   Widget build(BuildContext context) {
     final constraints = MediaQuery.of(context).size;
+    final initialTop = initialPositionY * constraints.height;
+    final initialLeft = initialPositionX * constraints.width;
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final initialTop = widget.initialPositionY * constraints.height;
-        final initialLeft = widget.initialPositionX * constraints.width;
-        final motion = getMotionOffset(_controller.value);
-
-        return Positioned(
-          top: initialTop + motion.dy,
-          left: initialLeft + motion.dx,
-          child: Transform.rotate(
-            angle: _controller.value * math.pi / 2,
-            child: Opacity(
-              opacity: 0.2 + (_random.nextDouble() * 0.4),
-              child: Container(
-                width: widget.size,
-                height: widget.size,
-                decoration: BoxDecoration(
-                  color: widget.color.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(widget.isSquare ? 15.0 : widget.size / 2),
-                ),
-              ),
+    return Positioned(
+      top: initialTop,
+      left: initialLeft,
+      child: Transform.rotate(
+        angle: rotation,
+        child: Opacity(
+          opacity: opacity,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(isSquare ? 15.0 : size / 2),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -247,7 +210,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
               _bulletPoint("Historial y Reportes: consulta evaluaciones guardadas en la nube y genera reportes en PDF para tus estudiantes."),
               const SizedBox(height: 15),
               const Text(
-                "ELOS te permite manejar la subjetividad natural del aprendizaje, dándote una representación fiel del progreso real de tus estudiantes.",
+                "ELOS te permite manejar la subjetividad natural del aprendizaje, dándote una representation fiel del progreso real de tus estudiantes.",
                 style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
@@ -380,6 +343,20 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
         final userEmail = querySnapshot.docs.first.data()['email'] as String;
         await FirebaseAuth.instance.signInWithEmailAndPassword(email: userEmail, password: password);
       } else {
+        // --- VALIDACIÓN DE DNI DUPLICADO ---
+        final queryDni = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('dni', isEqualTo: dniLimpio)
+            .limit(1)
+            .get();
+
+        if (queryDni.docs.isNotEmpty) {
+          throw FirebaseAuthException(
+            code: 'dni-already-in-use',
+            message: 'El DNI ingresado ya se encuentra registrado por otro usuario.',
+          );
+        }
+
         final email = _emailController.text;
         UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
 
@@ -420,8 +397,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
         case 'too-many-requests':
           mensajeError = 'Demasiados intentos. Inténtalo más tarde.';
           break;
+        case 'dni-already-in-use':
+          mensajeError = e.message ?? 'El DNI ya se encuentra registrado.';
+          break;
         default:
-          mensajeError = 'Error al iniciar sesión. Verifica tus datos.';
+          mensajeError = 'Error al procesar la solicitud. Verifica tus datos.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
