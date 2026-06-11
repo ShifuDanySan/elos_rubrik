@@ -83,8 +83,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     _nombreCtrl.addListener(() => setState(() {}));
     _apellidoCtrl.addListener(() => setState(() {}));
     _dniCtrl.addListener(() => setState(() {}));
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => _iniciarTutorial());
   }
 
   @override

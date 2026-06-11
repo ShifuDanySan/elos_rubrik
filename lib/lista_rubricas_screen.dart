@@ -57,19 +57,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          TutorialHelper().showTutorial(
-            context: context,
-            pageId: 'OPCIONES_RUBRICA',
-            keys: {
-              'opcion_evaluar': keyEvaluar,
-              'opcion_editar': keyEditar,
-              'opcion_eliminar': keyEliminar,
-            },
-            force: false,
-          );
-        });
-
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(data['nombre'] ?? 'Opciones',
@@ -191,11 +178,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 var docs = snapshot.data!.docs;
-
-                if (docs.isNotEmpty && !_tutorialPresentado) {
-                  _tutorialPresentado = true;
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _lanzarTutorial());
-                }
 
                 if (_filtroNombre.isNotEmpty) {
                   final busca = _normalizarTexto(_filtroNombre);

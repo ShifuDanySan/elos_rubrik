@@ -18,14 +18,19 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
-  // Llaves de tutorial sincronizadas con TutorialHelper
+  // Llaves de pantalla principal
   final GlobalKey _keySumaText = GlobalKey();
-  final GlobalKey _keyBotonFisico = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
   final GlobalKey _keyPrimerAddDescriptor = GlobalKey();
   final GlobalKey _keyPrimerEditCriterio = GlobalKey();
   final GlobalKey _keyEditDescriptorTutorial = GlobalKey();
   final GlobalKey _keyBotonFinalizar = GlobalKey();
+  final GlobalKey _keyBotonFisico = GlobalKey();
+
+  // Llaves persistentes para el diálogo
+  final GlobalKey _kCtx = GlobalKey();
+  final GlobalKey _kPesoDesc = GlobalKey();
+  final GlobalKey _kBtnAceptar = GlobalKey();
 
   List<dynamic> listaCriteriosLocal = [];
   bool cargandoInicial = true;
@@ -63,7 +68,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         listaCriteriosLocal = List.from(doc.data()?['criterios'] ?? []);
         cargandoInicial = false;
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) => _lanzarTutorial());
     }
   }
 
@@ -72,9 +76,8 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
       await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN', 'EDITAR_DESCRIPTOR']);
     }
 
-    // Mapeo exacto según el TutorialHelper que definimos antes
     Map<String, GlobalKey> tutorialKeys = {
-      'nombre_rubrica': _keySumaText, // Usamos la barra de estado como referencia de nombre/estado
+      'nombre_rubrica': _keySumaText,
       'lista_criterios': _keyPrimerCriterio,
       'btn_actualizar': _keyBotonFinalizar,
     };
@@ -104,13 +107,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   bool _estanDescriptoresCorrectos() {
     if (listaCriteriosLocal.isEmpty) return false;
-    for (var crit in listaCriteriosLocal) {
-      List descs = crit['descriptores'] ?? [];
-      if (descs.isEmpty) return false;
-      double suma = _calcularSumaPesos(descs);
-      if (suma < 0.99 || suma > 1.01) return false;
-    }
-    return true;
+    return listaCriteriosLocal.every((c) => (c['descriptores'] as List? ?? []).isNotEmpty);
   }
 
   Widget _buildHalfBar({required String text, required bool isOk}) {
@@ -160,11 +157,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         List descs = crit['descriptores'] ?? [];
         if (descs.isEmpty) {
           errores.add("- '$nombre' no tiene ningún descriptor/nivel.");
-        } else {
-          double sumaDescs = _calcularSumaPesos(descs);
-          if (sumaDescs < 0.99 || sumaDescs > 1.01) {
-            errores.add("- Los descriptores de '$nombre' deben sumar 1.00 (actual: $sumaDescs).");
-          }
         }
       }
     }
@@ -218,6 +210,29 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     );
   }
 
+  void _mostrarAlertaLimitePeso() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Icon(Icons.error_outline, color: Colors.red, size: 50),
+        content: const Text(
+          "La sumatoria de los pesos de los Criterios de Evaluación no puede ser mayor a 1. Por favor, modifique el peso asignado al nuevo criterio de evaluación.",
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: headerColor),
+              child: const Text("ACEPTAR", style: TextStyle(color: Colors.white)),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
   void _mostrarConfirmacionFinal() {
     showDialog(
       context: context,
@@ -247,138 +262,147 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   void _mostrarDialogoCriterio({Map<String, dynamic>? existente, int? index}) {
     final nombreCtrl = TextEditingController(text: existente?['nombre'] ?? '');
-    double peso = double.tryParse(existente?['peso']?.toString() ?? '0.0') ?? 0.0;
+    final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? '0.0');
+
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(existente == null ? 'Nuevo Criterio' : 'Editar Criterio'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nombreCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre del criterio')),
-              const SizedBox(height: 20),
-              Text("Peso: ${peso.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  inactiveTrackColor: Colors.grey[400],
-                  activeTrackColor: Colors.blue[700],
-                  thumbColor: Colors.blue[900],
-                ),
-                child: Slider(value: peso, min: 0.0, max: 1.0, divisions: 100, onChanged: (v) => setDialogState(() => peso = v)),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
-            ElevatedButton(onPressed: () {
-              setState(() {
-                final nuevo = {'nombre': nombreCtrl.text, 'peso': peso, 'descriptores': index != null ? listaCriteriosLocal[index]['descriptores'] : []};
-                if (index == null) listaCriteriosLocal.add(nuevo); else listaCriteriosLocal[index] = nuevo;
-              });
-              Navigator.pop(ctx);
-            }, child: const Text('ACEPTAR')),
+      builder: (ctx) => AlertDialog(
+        title: Text(existente == null ? 'Nuevo Criterio' : 'Editar Criterio'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nombreCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre del criterio')),
+            const SizedBox(height: 10),
+            TextField(controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso (0.0 a 1.0)')),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
+          ElevatedButton(onPressed: () {
+            if (nombreCtrl.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingresa un nombre"), backgroundColor: Colors.red));
+              return;
+            }
+            double nuevoPeso = double.tryParse(pesoCtrl.text) ?? 0.0;
+            if (nuevoPeso > 1.0) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("El peso no puede ser mayor a 1.0"), backgroundColor: Colors.red));
+              return;
+            }
+
+            List<dynamic> listaTemp = List.from(listaCriteriosLocal);
+            if (index == null) {
+              listaTemp.add({'nombre': nombreCtrl.text.trim(), 'peso': nuevoPeso, 'descriptores': []});
+            } else {
+              listaTemp[index] = {'nombre': nombreCtrl.text.trim(), 'peso': nuevoPeso, 'descriptores': listaCriteriosLocal[index]['descriptores']};
+            }
+
+            double sumaActual = _calcularSumaPesos(listaTemp);
+            if (sumaActual > 1.0) {
+              Navigator.pop(ctx);
+              _mostrarAlertaLimitePeso();
+              return;
+            }
+
+            setState(() {
+              if (index == null) listaCriteriosLocal.add(listaTemp.last); else listaCriteriosLocal[index] = listaTemp[index];
+            });
+            Navigator.pop(ctx);
+          }, child: const Text('ACEPTAR')),
+        ],
       ),
     );
   }
 
   void _mostrarDialogoDescriptor(int critIdx, {Map<String, dynamic>? existente, int? descIdx}) {
     final contextoCtrl = TextEditingController(text: existente?['contexto'] ?? '');
-    double peso = double.tryParse(existente?['peso']?.toString() ?? '0.0') ?? 0.0;
+    final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? '0.0');
     final a1NCtrl = TextEditingController(text: existente?['analitico1']?['nombre'] ?? '');
-    double grado1 = double.tryParse(existente?['analitico1']?['grado']?.toString() ?? '0.0') ?? 0.0;
+    final g1Ctrl = TextEditingController(text: existente?['analitico1']?['grado']?.toString() ?? '0.0');
     String? operador = existente?['operador'];
     final a2NCtrl = TextEditingController(text: existente?['analitico2']?['nombre'] ?? '');
-    double grado2 = double.tryParse(existente?['analitico2']?['grado']?.toString() ?? '0.0') ?? 0.0;
-
-    final GlobalKey keyContexto = GlobalKey();
-    final GlobalKey keyPesoDesc = GlobalKey();
-    final GlobalKey keyBotonAceptar = GlobalKey();
+    final g2Ctrl = TextEditingController(text: existente?['analitico2']?['grado']?.toString() ?? '0.0');
 
     showDialog(
       context: context,
-      builder: (ctx) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          TutorialHelper().showTutorial(
-              context: ctx,
-              pageId: 'EDITAR_DESCRIPTOR',
-              keys: {'contexto': keyContexto, 'peso_desc': keyPesoDesc, 'boton_aceptar': keyBotonAceptar},
-              force: false
-          );
-        });
-
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            title: const Text('Nivel / Descriptor'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(key: keyContexto, controller: contextoCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Contexto / Descripción')),
-                  const SizedBox(height: 10),
-                  Text("Peso del nivel: ${peso.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Container(
-                    key: keyPesoDesc,
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        inactiveTrackColor: Colors.grey[400],
-                        activeTrackColor: Colors.teal[700],
-                        thumbColor: Colors.teal[900],
-                      ),
-                      child: Slider(value: peso, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => peso = v)),
-                    ),
-                  ),
-                  TextField(controller: a1NCtrl, decoration: const InputDecoration(labelText: 'Analítico 1')),
-                  Text("Grado 1: ${grado1.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      inactiveTrackColor: Colors.grey[400],
-                      activeTrackColor: Colors.teal[700],
-                    ),
-                    child: Slider(value: grado1, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => grado1 = v)),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Operador Lógico'),
-                      value: operador,
-                      items: [null, 'AND', 'OR'].map((op) => DropdownMenuItem(value: op, child: Text(op ?? 'Ninguno'))).toList(),
-                      onChanged: (val) => setDialogState(() => operador = val)
-                  ),
-                  if (operador != null) ...[
-                    TextField(controller: a2NCtrl, decoration: const InputDecoration(labelText: 'Analítico 2')),
-                    Text("Grado 2: ${grado2.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        inactiveTrackColor: Colors.grey[400],
-                        activeTrackColor: Colors.teal[700],
-                      ),
-                      child: Slider(value: grado2, min: 0, max: 1, divisions: 100, onChanged: (v) => setDialogState(() => grado2 = v)),
-                    )
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
-              ElevatedButton(
-                  key: keyBotonAceptar,
-                  onPressed: () {
-                    setState(() {
-                      List descs = List.from(listaCriteriosLocal[critIdx]['descriptores'] ?? []);
-                      final nuevo = {'contexto': contextoCtrl.text, 'peso': peso, 'analitico1': {'nombre': a1NCtrl.text, 'grado': grado1}, 'operador': operador, 'analitico2': operador != null ? {'nombre': a2NCtrl.text, 'grado': grado2} : null};
-                      if (descIdx == null) descs.add(nuevo); else descs[descIdx] = nuevo;
-                      listaCriteriosLocal[critIdx]['descriptores'] = descs;
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('ACEPTAR')
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Nivel / Descriptor'),
+              IconButton(
+                icon: const Icon(Icons.help_outline, color: Colors.blue),
+                onPressed: () {
+                  TutorialHelper().showTutorial(
+                    context: ctx,
+                    pageId: 'EDITAR_DESCRIPTOR',
+                    keys: {'contexto': _kCtx, 'peso_desc': _kPesoDesc, 'boton_aceptar': _kBtnAceptar},
+                    force: true,
+                  );
+                },
               ),
             ],
           ),
-        );
-      },
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(key: _kCtx, controller: contextoCtrl, decoration: const InputDecoration(labelText: 'Contexto')),
+                TextField(key: _kPesoDesc, controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso del Nivel (max 1.0)')),
+                const Divider(),
+                TextField(controller: a1NCtrl, decoration: const InputDecoration(labelText: 'Analítico 1')),
+                TextField(controller: g1Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado Analítico 1 (max 1.0)')),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Operador Lógico'),
+                    value: operador,
+                    items: [null, 'AND', 'OR'].map((op) => DropdownMenuItem(value: op, child: Text(op ?? 'Ninguno'))).toList(),
+                    onChanged: (val) => setDialogState(() => operador = val)
+                ),
+                if (operador != null) ...[
+                  TextField(controller: a2NCtrl, decoration: const InputDecoration(labelText: 'Analítico 2')),
+                  TextField(controller: g2Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado Analítico 2 (max 1.0)')),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
+            ElevatedButton(
+                key: _kBtnAceptar,
+                onPressed: () {
+                  // Validación: Debe tener Analítico 1
+                  if (a1NCtrl.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes cargar al menos el Analítico 1"), backgroundColor: Colors.red));
+                    return;
+                  }
+
+                  double p = double.tryParse(pesoCtrl.text) ?? 0.0;
+                  double gr1 = double.tryParse(g1Ctrl.text) ?? 0.0;
+                  double gr2 = double.tryParse(g2Ctrl.text) ?? 0.0;
+                  if (p > 1.0 || gr1 > 1.0 || gr2 > 1.0) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ningún valor puede ser mayor a 1.0"), backgroundColor: Colors.red));
+                    return;
+                  }
+                  setState(() {
+                    List descs = List.from(listaCriteriosLocal[critIdx]['descriptores'] ?? []);
+                    final nuevo = {
+                      'contexto': contextoCtrl.text,
+                      'peso': p,
+                      'analitico1': {'nombre': a1NCtrl.text, 'grado': gr1},
+                      'operador': operador,
+                      'analitico2': operador != null ? {'nombre': a2NCtrl.text, 'grado': gr2} : null
+                    };
+                    if (descIdx == null) descs.add(nuevo); else descs[descIdx] = nuevo;
+                    listaCriteriosLocal[critIdx]['descriptores'] = descs;
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('ACEPTAR')
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -427,9 +451,8 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               itemBuilder: (context, cIdx) {
                 final c = listaCriteriosLocal[cIdx];
                 final List descs = c['descriptores'] ?? [];
-                final double sumaDescs = _calcularSumaPesos(descs);
                 final double pesoCrit = double.tryParse(c['peso'].toString()) ?? 0.0;
-                final bool critError = (pesoCrit == 0 || sumaDescs < 0.99 || sumaDescs > 1.01 || descs.isEmpty);
+                final bool critError = (pesoCrit == 0 || descs.isEmpty);
 
                 return Card(
                   key: cIdx == 0 ? _keyPrimerCriterio : null,
@@ -442,7 +465,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                     initiallyExpanded: true,
                     title: Text(c['nombre'], style: TextStyle(color: headerColor, fontWeight: FontWeight.bold)),
                     subtitle: Text(
-                        "Peso: ${pesoCrit.toStringAsFixed(2)} | Suma Descs: ${sumaDescs.toStringAsFixed(2)}",
+                        "Peso: ${pesoCrit.toStringAsFixed(2)} | Descriptores: ${descs.length}",
                         style: TextStyle(color: critError ? Colors.red : Colors.grey[700])
                     ),
                     trailing: Row(

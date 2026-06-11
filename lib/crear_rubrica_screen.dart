@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_helper.dart';
 import 'editar_rubrica_screen.dart';
 
@@ -32,16 +31,6 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
   void initState() {
     super.initState();
     _initTutorial();
-    _checkFirstSeen();
-  }
-
-  Future<void> _checkFirstSeen() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    bool seen = (prefs.getBool('seen_crear_rubrica_tutorial') ?? false);
-    if (!seen) {
-      Future.delayed(const Duration(milliseconds: 600), () => _showTutorial());
-      await prefs.setBool('seen_crear_rubrica_tutorial', true);
-    }
   }
 
   void _initTutorial() {
@@ -181,15 +170,15 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
           AuthHelper.logoutButton(context),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            height: constraints.maxHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Título de la Rúbrica', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const Align(alignment: Alignment.centerLeft, child: Text('Título de la Rúbrica', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey))),
                   const SizedBox(height: 15),
                   TextFormField(
                     controller: _nombreController,
@@ -202,44 +191,43 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  const SizedBox(height: 30),
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        'assets/images/unnamed.jpg',
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/images/unnamed.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                        ),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    key: _keyBotonCrear,
+                    onPressed: _cargando ? null : _guardarYContinuar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: actionButtonColor,
+                      minimumSize: const Size(double.infinity, 55),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      elevation: 6,
+                    ),
+                    child: _cargando
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('CREAR Y CONFIGURAR', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-            child: ElevatedButton(
-              key: _keyBotonCrear,
-              onPressed: _cargando ? null : _guardarYContinuar,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: actionButtonColor,
-                minimumSize: const Size(double.infinity, 55),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                elevation: 6,
-              ),
-              child: _cargando
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('CREAR Y CONFIGURAR', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

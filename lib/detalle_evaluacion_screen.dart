@@ -30,9 +30,6 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showTutorial();
-    });
   }
 
   @override

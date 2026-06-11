@@ -25,9 +25,6 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showTutorial();
-    });
   }
 
   void _showTutorial({bool force = false}) {

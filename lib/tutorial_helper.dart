@@ -101,6 +101,17 @@ class TutorialHelper {
         ];
         break;
 
+      case 'EDITAR_DESCRIPTOR':
+        targets = [
+          if (keys.containsKey('contexto'))
+            _crearTarget(id: "ed_desc_cont", key: keys['contexto']!, paso: "1", titulo: "Descripción", mensaje: "Define el contexto o nombre del descriptor de nivel.", esCirculo: false),
+          if (keys.containsKey('peso_desc'))
+            _crearTarget(id: "ed_desc_peso", key: keys['peso_desc']!, paso: "2", titulo: "Peso del Nivel", mensaje: "Desliza para asignar el peso específico que este descriptor aporta al criterio.", esCirculo: false),
+          if (keys.containsKey('boton_aceptar'))
+            _crearTarget(id: "ed_desc_ok", key: keys['boton_aceptar']!, paso: "3", titulo: "Guardar", mensaje: "Presiona para aplicar los cambios del descriptor.", esCirculo: false),
+        ];
+        break;
+
       case 'EDITOR_NOMBRE_PESO_CRITERIO':
         targets = [
           if (keys.containsKey('input_nombre_criterio'))
