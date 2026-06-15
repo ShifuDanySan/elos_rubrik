@@ -19,12 +19,11 @@ class DetalleEvaluacionScreen extends StatefulWidget {
 }
 
 class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with WidgetsBindingObserver {
-  // GlobalKeys sincronizadas con TutorialHelper
   final GlobalKey _keyPuntajeTotal = GlobalKey();
   final GlobalKey _keyTablaResumen = GlobalKey();
   final GlobalKey _keyListaDesglosada = GlobalKey();
   final GlobalKey _keyBtnPdf = GlobalKey();
-  final GlobalKey _keyBtnInfo = GlobalKey(); // Usada para compartir/info en el tutorial
+  final GlobalKey _keyBtnInfo = GlobalKey();
 
   @override
   void initState() {
@@ -55,7 +54,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
         'tabla_resumen': _keyTablaResumen,
         'lista_desglosada': _keyListaDesglosada,
         'btn_pdf': _keyBtnPdf,
-        'btn_compartir': _keyBtnInfo, // Mapeamos el botón de info como el paso de compartir/info
+        'btn_compartir': _keyBtnInfo,
       },
       force: force,
     );
@@ -77,26 +76,13 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                "Este reporte utiliza Lógica Compensatoria Difusa (LCD) para garantizar una calificación justa y pedagógica.",
+              const Text("Este reporte utiliza Lógica Compensatoria Difusa (LCD) para garantizar una calificación justa y pedagógica.",
                 style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.black54),
               ),
               const SizedBox(height: 20),
-              _itemInfo(
-                  Icons.analytics_outlined,
-                  "Analíticos y Grados de Verdad",
-                  "Cada evidencia marcada alimenta un predicado lógico. No es un 'sí/no' rígido, sino una acumulación de evidencias de aprendizaje."
-              ),
-              _itemInfo(
-                  Icons.balance,
-                  "Principio de Compensación",
-                  "El modelo permite que fortalezas demostradas compensen debilidades menores, reflejando el aprendizaje como un proceso no lineal."
-              ),
-              _itemInfo(
-                  Icons.functions,
-                  "Suma Positiva",
-                  "Cuando el balance de analíticos es favorable, el sistema valida matemáticamente el nivel de desempeño como 'Verdadero'."
-              ),
+              _itemInfo(Icons.analytics_outlined, "Analíticos y Grados", "Cada evidencia alimentó un predicado lógico basado en el grado de desempeño."),
+              _itemInfo(Icons.balance, "Principio de Compensación", "Las fortalezas demostradas compensan debilidades menores en los descriptores."),
+              _itemInfo(Icons.functions, "Suma Positiva", "El resultado mostrado es el valor calculado y persistido durante la evaluación."),
             ],
           ),
         ),
@@ -151,12 +137,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            key: _keyBtnInfo,
-            icon: const Icon(Icons.info_outline),
-            onPressed: _mostrarExplicacionLCD,
-            tooltip: "Ver lógica de cálculo",
-          ),
+          IconButton(key: _keyBtnInfo, icon: const Icon(Icons.info_outline), onPressed: _mostrarExplicacionLCD),
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 5),
@@ -165,11 +146,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
               onPressed: () => PdfService.generarReporteEvaluacion(widget.evaluacion),
               icon: const Icon(Icons.picture_as_pdf, size: 18),
               label: const Text("PDF", style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accentColor,
-                foregroundColor: _primaryColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: _accentColor, foregroundColor: _primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
             ),
           ),
           AuthHelper.logoutButton(context),
@@ -187,21 +164,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
                 const SizedBox(height: 25),
                 Container(
                   key: _keyTablaResumen,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "DESGLOSE DE RESULTADOS",
-                        style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: _primaryColor.withOpacity(0.8),
-                            fontSize: 13,
-                            letterSpacing: 1.2
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: Row(children: [const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20), const SizedBox(width: 8), Text("DESGLOSE DE RESULTADOS", style: TextStyle(fontWeight: FontWeight.w900, color: _primaryColor.withOpacity(0.8), fontSize: 13, letterSpacing: 1.2))]),
                 ),
                 const Divider(thickness: 2, color: _primaryColor),
                 const SizedBox(height: 10),
@@ -221,13 +184,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
   Widget _buildInfoCard(String alumno, String rubrica, String fecha, double nota) {
     return Container(
       key: _keyPuntajeTotal,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: _primaryColor.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: _primaryColor.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))]),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -236,8 +193,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(alumno.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: _primaryColor)),
+                  Text(alumno.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: _primaryColor)),
                   const SizedBox(height: 5),
                   Text(rubrica, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: Colors.black54)),
                   Text("Fecha: $fecha", style: const TextStyle(fontSize: 12, color: Colors.grey)),
@@ -246,15 +202,8 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
             ),
             Container(
               padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: _primaryColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: _accentColor, width: 3),
-              ),
-              child: Text(
-                nota.toStringAsFixed(2),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-              ),
+              decoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle, border: Border.all(color: _accentColor, width: 3)),
+              child: Text(nota.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             ),
           ],
         ),
@@ -264,11 +213,9 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
 
   Widget _buildCriterioTile(Map<String, dynamic> criterio, GlobalKey? key) {
     final List descriptores = criterio['descriptores'] ?? [];
-    double notaCriterio = 0.0;
-    for (var d in descriptores) {
-      notaCriterio += (d['resultado_descriptor'] ?? 0.0).toDouble();
-    }
 
+    // NOTA: Aquí usamos los valores ya calculados y guardados en la base de datos
+    // en lugar de intentar recalcularlos.
     return Card(
       key: key,
       margin: const EdgeInsets.only(bottom: 16),
@@ -280,25 +227,11 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
         backgroundColor: Colors.white,
         collapsedBackgroundColor: Colors.white,
         iconColor: _primaryColor,
-        title: Text(criterio['nombre'] ?? 'Criterio',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: _primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            notaCriterio.toStringAsFixed(2),
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              color: _primaryColor,
-              fontSize: 18,
-            ),
-          ),
-        ),
+        title: Text(criterio['nombre'] ?? 'Criterio', style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
         children: descriptores.map((desc) {
           final List analiticos = desc['analiticos'] ?? [];
+          final double valorDescriptor = (desc['resultado_descriptor'] ?? 0.0).toDouble();
+
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
             color: _backgroundColor.withOpacity(0.1),
@@ -306,13 +239,16 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.description_outlined, size: 16, color: _accentColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(desc['contexto'] ?? 'Descriptor',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    Row(
+                      children: [
+                        const Icon(Icons.description_outlined, size: 16, color: _accentColor),
+                        const SizedBox(width: 8),
+                        Text(desc['contexto'] ?? 'Descriptor', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                      ],
                     ),
+                    Text(valorDescriptor.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor)),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -322,12 +258,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
                     children: [
                       const Icon(Icons.chevron_right, size: 14, color: _primaryColor),
                       Expanded(child: Text(ana['nombre'], style: const TextStyle(fontSize: 13))),
-                      Text("${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}",
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: _primaryColor
-                          )),
+                      Text("${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primaryColor)),
                     ],
                   ),
                 )).toList(),
@@ -343,7 +274,6 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
 
 class _StaticFloatingBackground extends StatelessWidget {
   const _StaticFloatingBackground();
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -359,10 +289,7 @@ class _StaticFloatingBackground extends StatelessWidget {
               child: Container(
                 width: 50 + random.nextDouble() * 100,
                 height: 50 + random.nextDouble() * 100,
-                decoration: BoxDecoration(
-                  color: i % 2 == 0 ? _primaryColor : _accentColor,
-                  borderRadius: BorderRadius.circular(15),
-                ),
+                decoration: BoxDecoration(color: i % 2 == 0 ? _primaryColor : _accentColor, borderRadius: BorderRadius.circular(15)),
               ),
             ),
           );

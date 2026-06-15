@@ -18,7 +18,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
-  // Llaves de pantalla principal
   final GlobalKey _keySumaText = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
   final GlobalKey _keyPrimerAddDescriptor = GlobalKey();
@@ -27,7 +26,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   final GlobalKey _keyBotonFinalizar = GlobalKey();
   final GlobalKey _keyBotonFisico = GlobalKey();
 
-  // Llaves persistentes para el diálogo
   final GlobalKey _kCtx = GlobalKey();
   final GlobalKey _kPesoDesc = GlobalKey();
   final GlobalKey _kBtnAceptar = GlobalKey();
@@ -46,6 +44,34 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _mostrarInfoConceptos() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("¿Cómo organizar la rúbrica?"),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("DEFINICIONES:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text("1. CRITERIOS: Son las categorías principales. El 'Peso' define su importancia total (debe sumar 1.0)."),
+              const Text("2. DESCRIPTORES: Son los niveles de calidad (ej. 'Excelente', 'Regular')."),
+              const Text("3. CRITERIOS ANALÍTICOS: Los puntos específicos a medir. El 'Grado' es el valor de logro (0.0 a 1.0)."),
+              const Text("4. OPERADORES: \n- AND: Exige que se cumplan ambas condiciones.\n- OR: Basta con que se cumpla una de las dos."),
+              const Divider(height: 30),
+              const Text("EJEMPLO (Cátedra de Programación):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text("• Criterio: 'Calidad de Código' (Peso 0.60)."),
+              const Text("• Nivel: 'Excelente' (Peso 1.0)."),
+              const Text("• Analítico: 'Uso de variables' (Grado 1.0) AND 'Comentarios' (Grado 0.8)."),
+              const Text("-> El sistema verificará que el alumno cumpla con las variables Y los comentarios para obtener el máximo nivel."),
+            ],
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("¡ENTENDIDO!"))],
+      ),
+    );
   }
 
   @override
@@ -131,9 +157,9 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
       color: Colors.white,
       child: Row(
         children: [
-          _buildHalfBar(text: criteriosOk ? "CRITERIOS: OK" : "CRITERIOS: REVISAR PESOS", isOk: criteriosOk),
+          _buildHalfBar(text: criteriosOk ? "CRITERIOS DE EVALUACIÓN - OK" : "CRITERIOS DE EVALUACIÓN - REVISAR PESOS", isOk: criteriosOk),
           const SizedBox(width: 1),
-          _buildHalfBar(text: descriptoresOk ? "DESCRIPTORES: OK" : "DESCRIPTORES: REVISAR", isOk: descriptoresOk),
+          _buildHalfBar(text: descriptoresOk ? "DESCRIPTORES - OK" : "DESCRIPTORES - REVISAR", isOk: descriptoresOk),
         ],
       ),
     );
@@ -371,7 +397,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             ElevatedButton(
                 key: _kBtnAceptar,
                 onPressed: () {
-                  // Validación: Debe tener Analítico 1
                   if (a1NCtrl.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes cargar al menos el Analítico 1"), backgroundColor: Colors.red));
                     return;
@@ -418,11 +443,11 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     });
   }
 
-  Widget _buildAnaliticoChip(String nombre, double grado) {
+  Widget _buildAnaliticoChip(String nombre, double grado, int num) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: Colors.blue.withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blue.withOpacity(0.3))),
-      child: Text("$nombre: ${grado.toStringAsFixed(2)}", style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+      child: Text("CRITERIO ANALÍTICO $num - (${nombre.toUpperCase()} - PESO: $grado)", style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -437,6 +462,13 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () async { if (await _advertirSalida()) Navigator.pop(context); }),
         title: Text(widget.nombreInicial, style: const TextStyle(color: Colors.white, fontSize: 14)),
         actions: [
+          Tooltip(
+            message: "Ver conceptos y ejemplos",
+            child: IconButton(
+              icon: const Icon(Icons.info_outline, color: Colors.white),
+              onPressed: _mostrarInfoConceptos,
+            ),
+          ),
           TutorialHelper.helpButton(context, () => _lanzarTutorial(force: true)),
           AuthHelper.logoutButton(context)
         ],
@@ -452,7 +484,11 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                 final c = listaCriteriosLocal[cIdx];
                 final List descs = c['descriptores'] ?? [];
                 final double pesoCrit = double.tryParse(c['peso'].toString()) ?? 0.0;
-                final bool critError = (pesoCrit == 0 || descs.isEmpty);
+
+                List<String> erroresCrit = [];
+                if (pesoCrit == 0) erroresCrit.add("Peso en 0");
+                if (descs.isEmpty) erroresCrit.add("Sin descriptores");
+                final bool critError = erroresCrit.isNotEmpty;
 
                 return Card(
                   key: cIdx == 0 ? _keyPrimerCriterio : null,
@@ -461,68 +497,79 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                       side: critError ? const BorderSide(color: Colors.red, width: 2) : BorderSide.none,
                       borderRadius: BorderRadius.circular(8)
                   ),
-                  child: ExpansionTile(
-                    initiallyExpanded: true,
-                    title: Text(c['nombre'], style: TextStyle(color: headerColor, fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                        "Peso: ${pesoCrit.toStringAsFixed(2)} | Descriptores: ${descs.length}",
-                        style: TextStyle(color: critError ? Colors.red : Colors.grey[700])
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(key: cIdx == 0 ? _keyPrimerEditCriterio : null, icon: const Icon(Icons.edit_note, color: Colors.blue), onPressed: () => _mostrarDialogoCriterio(existente: c, index: cIdx)),
-                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _eliminarElemento(cIdx)),
-                      ],
-                    ),
+                  child: Column(
                     children: [
-                      ...descs.asMap().entries.map((e) {
-                        final d = e.value;
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: const Border(left: BorderSide(color: Colors.blue, width: 5)),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ExpansionTile(
+                        initiallyExpanded: true,
+                        title: Text("CRITERIO DE EVALUACIÓN ${cIdx + 1} (${c['nombre'].toUpperCase()} - PESO: $pesoCrit)", style: TextStyle(color: headerColor, fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                            "DESCRIPTORES: ${descs.length}",
+                            style: TextStyle(color: critError ? Colors.red : Colors.grey[700])
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(key: cIdx == 0 ? _keyPrimerEditCriterio : null, icon: const Icon(Icons.edit_note, color: Colors.blue), onPressed: () => _mostrarDialogoCriterio(existente: c, index: cIdx)),
+                            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _eliminarElemento(cIdx)),
+                          ],
+                        ),
+                        children: [
+                          ...descs.asMap().entries.map((e) {
+                            final d = e.value;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: const Border(left: BorderSide(color: Colors.blue, width: 5)),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(child: Text("${d['contexto']} (Peso: ${d['peso']})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                                   Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      IconButton(
-                                          key: (cIdx == 0 && e.key == 0) ? _keyEditDescriptorTutorial : null,
-                                          icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                                          onPressed: () => _mostrarDialogoDescriptor(cIdx, existente: d, descIdx: e.key)
+                                      Expanded(child: Text("DESCRIPTOR ${e.key + 1} (${d['contexto'].toUpperCase()} - PESO: ${d['peso']})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                              key: (cIdx == 0 && e.key == 0) ? _keyEditDescriptorTutorial : null,
+                                              icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                              onPressed: () => _mostrarDialogoDescriptor(cIdx, existente: d, descIdx: e.key)
+                                          ),
+                                          IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20), onPressed: () => _eliminarElemento(cIdx, dIdx: e.key)),
+                                        ],
                                       ),
-                                      IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20), onPressed: () => _eliminarElemento(cIdx, dIdx: e.key)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      _buildAnaliticoChip(d['analitico1']?['nombre'] ?? 'A1', double.tryParse(d['analitico1']?['grado']?.toString() ?? '0.0') ?? 0.0, 1),
+                                      if (d['operador'] != null) ...[
+                                        Padding(padding: const EdgeInsets.only(top: 4), child: Text(d['operador'], style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold))),
+                                        _buildAnaliticoChip(d['analitico2']?['nombre'] ?? 'A2', double.tryParse(d['analitico2']?['grado']?.toString() ?? '0.0') ?? 0.0, 2),
+                                      ],
                                     ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  _buildAnaliticoChip(d['analitico1']?['nombre'] ?? 'A1', double.tryParse(d['analitico1']?['grado']?.toString() ?? '0.0') ?? 0.0),
-                                  if (d['operador'] != null) ...[
-                                    Padding(padding: const EdgeInsets.only(top: 4), child: Text(d['operador'], style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold))),
-                                    _buildAnaliticoChip(d['analitico2']?['nombre'] ?? 'A2', double.tryParse(d['analitico2']?['grado']?.toString() ?? '0.0') ?? 0.0),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      ListTile(key: cIdx == 0 ? _keyPrimerAddDescriptor : null, leading: const Icon(Icons.add_circle_outline, color: Colors.green), title: const Text("Añadir Nivel", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)), onTap: () => _mostrarDialogoDescriptor(cIdx))
+                            );
+                          }),
+                          ListTile(key: cIdx == 0 ? _keyPrimerAddDescriptor : null, leading: const Icon(Icons.add_circle_outline, color: Colors.green), title: const Text("AÑADIR DESCRIPTOR", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)), onTap: () => _mostrarDialogoDescriptor(cIdx))
+                        ],
+                      ),
+                      if (critError)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(8),
+                          color: Colors.red.withOpacity(0.1),
+                          child: Text("FALTA: ${erroresCrit.join(', ').toUpperCase()}", style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                        )
                     ],
                   ),
                 );
@@ -534,7 +581,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton.icon(key: _keyBotonFisico, onPressed: () => _mostrarDialogoCriterio(), icon: const Icon(Icons.add, color: Colors.white), label: const Text("AÑADIR CRITERIO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])),
+                ElevatedButton.icon(key: _keyBotonFisico, onPressed: () => _mostrarDialogoCriterio(), icon: const Icon(Icons.add, color: Colors.white), label: const Text("AÑADIR CRITERIO DE EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])),
                 ElevatedButton.icon(key: _keyBotonFinalizar, onPressed: _intentarFinalizar, icon: const Icon(Icons.cloud_upload, color: Colors.white), label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700])),
               ],
             ),
