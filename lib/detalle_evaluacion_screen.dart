@@ -214,8 +214,6 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
   Widget _buildCriterioTile(Map<String, dynamic> criterio, GlobalKey? key) {
     final List descriptores = criterio['descriptores'] ?? [];
 
-    // NOTA: Aquí usamos los valores ya calculados y guardados en la base de datos
-    // en lugar de intentar recalcularlos.
     return Card(
       key: key,
       margin: const EdgeInsets.only(bottom: 16),
@@ -227,14 +225,15 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
         backgroundColor: Colors.white,
         collapsedBackgroundColor: Colors.white,
         iconColor: _primaryColor,
-        title: Text(criterio['nombre'] ?? 'Criterio', style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
+        title: Text(criterio['nombre'] ?? 'Criterio',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
         children: descriptores.map((desc) {
           final List analiticos = desc['analiticos'] ?? [];
           final double valorDescriptor = (desc['resultado_descriptor'] ?? 0.0).toDouble();
 
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-            color: _backgroundColor.withOpacity(0.1),
+            color: _backgroundColor.withOpacity(0.05),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -245,24 +244,37 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
                       children: [
                         const Icon(Icons.description_outlined, size: 16, color: _accentColor),
                         const SizedBox(width: 8),
-                        Text(desc['contexto'] ?? 'Descriptor', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        Text(desc['contexto'] ?? 'Descriptor',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
                       ],
                     ),
-                    Text(valorDescriptor.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        valorDescriptor.toStringAsFixed(2),
+                        style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor, fontSize: 15),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 ...analiticos.map((ana) => Padding(
-                  padding: const EdgeInsets.only(left: 24, bottom: 6),
+                  padding: const EdgeInsets.only(left: 24, bottom: 4),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.chevron_right, size: 14, color: _primaryColor),
-                      Expanded(child: Text(ana['nombre'], style: const TextStyle(fontSize: 13))),
-                      Text("${(ana['valor_asignado'] ?? 0.0).toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primaryColor)),
+                      Text(ana['nombre'], style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                      Text((ana['valor_asignado'] ?? 0.0).toStringAsFixed(2),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
                     ],
                   ),
                 )).toList(),
-                if (desc != descriptores.last) const Divider(),
+                if (desc != descriptores.last) const Divider(height: 20),
               ],
             ),
           );
