@@ -82,51 +82,38 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   double _calcularValorDescriptor(Map<String, dynamic> desc, int i, int j) {
     var analiticos = _extraerAnaliticos(desc);
     if (analiticos.isEmpty) return 0.0;
-
     List<double> valoresZadeh = [];
     for (int k = 0; k < analiticos.length; k++) {
       double grado = double.tryParse(analiticos[k]['grado'].toString()) ?? 1.0;
       valoresZadeh.add(_getNota(i, j, k) * grado);
     }
-
     String operador = desc['operador']?.toString().toUpperCase() ?? "AND";
-    double resultado = (operador == "OR")
-        ? valoresZadeh.reduce(math.max)
-        : valoresZadeh.reduce(math.min);
-
+    double resultado = (operador == "OR") ? valoresZadeh.reduce(math.max) : valoresZadeh.reduce(math.min);
     return double.parse(resultado.toStringAsFixed(2));
   }
 
   double _calcularNotaFinal() {
     double sumaTotalPonderada = 0;
-    double sumaPesos = 0;
+    double sumaPesosTotales = 0;
     var criterios = widget.rubricaData['criterios'] as List? ?? [];
 
     for (int i = 0; i < criterios.length; i++) {
       var crit = criterios[i];
-      double pesoCriterio = double.tryParse(crit['peso']?.toString() ?? "1.0") ?? 1.0;
       var descriptores = crit['descriptores'] as List? ?? [];
 
-      if (descriptores.isEmpty) continue;
-
-      double sumaDescriptores = 0;
-      int cuentaValidos = 0;
       for (int j = 0; j < descriptores.length; j++) {
         double val = _calcularValorDescriptor(descriptores[j], i, j);
-        if (val > 0) { // Solo sumar descriptores con valor real
-          sumaDescriptores += val;
-          cuentaValidos++;
-        }
-      }
 
-      if (cuentaValidos > 0) {
-        double promedioCriterio = sumaDescriptores / cuentaValidos;
-        sumaTotalPonderada += (promedioCriterio * pesoCriterio);
-        sumaPesos += pesoCriterio;
+        // CORRECCIÓN: Si el valor calculado es 0, ignoramos este descriptor
+        if (val > 0) {
+          double pesoDesc = double.tryParse(descriptores[j]['peso']?.toString() ?? "1.0") ?? 1.0;
+          sumaTotalPonderada += (val * pesoDesc);
+          sumaPesosTotales += pesoDesc;
+        }
       }
     }
 
-    return sumaPesos == 0 ? 0.0 : double.parse((sumaTotalPonderada / sumaPesos).toStringAsFixed(2));
+    return sumaPesosTotales == 0 ? 0.0 : double.parse((sumaTotalPonderada / sumaPesosTotales).toStringAsFixed(2));
   }
 
   void _mostrarDialogoConfirmacion() {
@@ -137,7 +124,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(children: [Icon(Icons.save_as, color: Color(0xFF1A237E)), SizedBox(width: 10), Text("CONFIRMAR ENVÍO")]),
-          content: Text("CALIFICACIÓN FINAL: ${_calcularNotaFinal()}"),
+          content: Text("CALIFICACIÓN FINAL PONDERADA: ${_calcularNotaFinal()}"),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("REVISAR")),
             ElevatedButton(
@@ -156,10 +143,12 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     if (userId == null) return;
     var criteriosRaw = widget.rubricaData['criterios'] as List? ?? [];
     List<Map<String, dynamic>> estructuraAEnviar = [];
+
     for (int i = 0; i < criteriosRaw.length; i++) {
       var crit = criteriosRaw[i];
       List<Map<String, dynamic>> listaDesc = [];
       var descriptoresRaw = crit['descriptores'] as List? ?? [];
+
       for (int j = 0; j < descriptoresRaw.length; j++) {
         var desc = descriptoresRaw[j];
         var analiticosRaw = _extraerAnaliticos(desc);
@@ -167,10 +156,17 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
         for (int k = 0; k < analiticosRaw.length; k++) {
           listaAna.add({'nombre': analiticosRaw[k]['nombre'], 'grado': analiticosRaw[k]['grado'], 'valor_asignado': _getNota(i, j, k)});
         }
-        listaDesc.add({'contexto': desc['contexto'], 'operador': desc['operador'], 'resultado_descriptor': _calcularValorDescriptor(desc, i, j), 'analiticos': listaAna});
+        listaDesc.add({
+          'contexto': desc['contexto'],
+          'operador': desc['operador'],
+          'peso': desc['peso'] ?? 1.0,
+          'resultado_descriptor': _calcularValorDescriptor(desc, i, j),
+          'analiticos': listaAna
+        });
       }
       estructuraAEnviar.add({'nombre': crit['nombre'], 'peso': crit['peso'], 'descriptores': listaDesc});
     }
+
     await FirebaseFirestore.instance.collection('artifacts/rubrica_evaluator/users/$userId/evaluaciones').add({
       'estudiante': widget.estudiante.toUpperCase(),
       'nombre': widget.nombre.toUpperCase(),
@@ -199,7 +195,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
       ),
       body: Column(
         children: [
-          Container(height: 20, decoration: BoxDecoration(color: primaryDark, borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)))),
+          Container(height: 20, decoration: const BoxDecoration(color: Color(0xFF1A237E), borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25)))),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
@@ -224,6 +220,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text("DESCRIPTOR ${j + 1} (${desc['contexto']})".toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B))),
+                            Text("Peso: ${desc['peso'] ?? '1.0'}", style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
                             const Divider(),
                             ...analiticos.asMap().entries.map((aEntry) {
                               int k = aEntry.key;
@@ -271,7 +268,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
             decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))),
             child: Column(
               children: [
-                Text("NOTA FINAL: ${_calcularNotaFinal()}", key: _keyNotaFinal, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryDark)),
+                Text("NOTA FINAL PONDERADA: ${_calcularNotaFinal()}", key: _keyNotaFinal, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryDark)),
                 const SizedBox(height: 15),
                 ElevatedButton(
                   key: _keyBtnGuardarEval,

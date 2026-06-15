@@ -46,6 +46,20 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     super.dispose();
   }
 
+  // Método auxiliar para mostrar alertas de validación bloqueantes
+  void _mostrarAviso(String titulo, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titulo),
+        content: Text(mensaje),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("ACEPTAR"))
+        ],
+      ),
+    );
+  }
+
   void _mostrarInfoConceptos() {
     showDialog(
       context: context,
@@ -243,7 +257,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Icon(Icons.error_outline, color: Colors.red, size: 50),
         content: const Text(
-          "La sumatoria de los pesos de los Criterios de Evaluación no puede ser mayor a 1. Por favor, modifique el peso asignado al nuevo criterio de evaluación.",
+          "La sumatoria de los pesos de los Criterios de Evaluación no puede ser mayor a 1. Por favor, modifique el peso asignado al nuevo criterio de evaluación, o reduzca el peso asignado a alguno de los Criterios de Evaluación anteriores.",
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -299,27 +313,30 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
           children: [
             TextField(controller: nombreCtrl, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre del criterio')),
             const SizedBox(height: 10),
-            TextField(controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso (0.0 a 1.0)')),
+            TextField(controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso (0.01 a 1.0)')),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
           ElevatedButton(onPressed: () {
+            // Validación de campos vacíos
             if (nombreCtrl.text.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ingresa un nombre"), backgroundColor: Colors.red));
+              _mostrarAviso("Error", "El nombre es obligatorio.");
               return;
             }
-            double nuevoPeso = double.tryParse(pesoCtrl.text) ?? 0.0;
-            if (nuevoPeso > 1.0) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("El peso no puede ser mayor a 1.0"), backgroundColor: Colors.red));
+
+            // Validación de números y rangos
+            double? peso = double.tryParse(pesoCtrl.text);
+            if (peso == null || peso <= 0 || peso > 1.0) {
+              _mostrarAviso("Error", "El peso debe ser un número entre 0.01 y 1.0.");
               return;
             }
 
             List<dynamic> listaTemp = List.from(listaCriteriosLocal);
             if (index == null) {
-              listaTemp.add({'nombre': nombreCtrl.text.trim(), 'peso': nuevoPeso, 'descriptores': []});
+              listaTemp.add({'nombre': nombreCtrl.text.trim(), 'peso': peso, 'descriptores': []});
             } else {
-              listaTemp[index] = {'nombre': nombreCtrl.text.trim(), 'peso': nuevoPeso, 'descriptores': listaCriteriosLocal[index]['descriptores']};
+              listaTemp[index] = {'nombre': nombreCtrl.text.trim(), 'peso': peso, 'descriptores': listaCriteriosLocal[index]['descriptores']};
             }
 
             double sumaActual = _calcularSumaPesos(listaTemp);
@@ -374,10 +391,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(key: _kCtx, controller: contextoCtrl, decoration: const InputDecoration(labelText: 'Contexto')),
-                TextField(key: _kPesoDesc, controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso del Nivel (max 1.0)')),
+                TextField(key: _kPesoDesc, controller: pesoCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Peso del Nivel (0.01 a 1.0)')),
                 const Divider(),
                 TextField(controller: a1NCtrl, decoration: const InputDecoration(labelText: 'Analítico 1')),
-                TextField(controller: g1Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado Analítico 1 (max 1.0)')),
+                TextField(controller: g1Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado A1 (0.01 a 1.0)')),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Operador Lógico'),
@@ -387,7 +404,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                 ),
                 if (operador != null) ...[
                   TextField(controller: a2NCtrl, decoration: const InputDecoration(labelText: 'Analítico 2')),
-                  TextField(controller: g2Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado Analítico 2 (max 1.0)')),
+                  TextField(controller: g2Ctrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Grado A2 (0.01 a 1.0)')),
                 ],
               ],
             ),
@@ -397,26 +414,43 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             ElevatedButton(
                 key: _kBtnAceptar,
                 onPressed: () {
-                  if (a1NCtrl.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes cargar al menos el Analítico 1"), backgroundColor: Colors.red));
+                  // Validación: Todos los campos obligatorios
+                  if (contextoCtrl.text.isEmpty || pesoCtrl.text.isEmpty || a1NCtrl.text.isEmpty || g1Ctrl.text.isEmpty) {
+                    _mostrarAviso("Error", "Todos los campos principales son obligatorios.");
                     return;
                   }
 
-                  double p = double.tryParse(pesoCtrl.text) ?? 0.0;
-                  double gr1 = double.tryParse(g1Ctrl.text) ?? 0.0;
-                  double gr2 = double.tryParse(g2Ctrl.text) ?? 0.0;
-                  if (p > 1.0 || gr1 > 1.0 || gr2 > 1.0) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ningún valor puede ser mayor a 1.0"), backgroundColor: Colors.red));
+                  // Validación numérica
+                  double? p = double.tryParse(pesoCtrl.text);
+                  double? g1 = double.tryParse(g1Ctrl.text);
+
+                  if (p == null || p <= 0 || p > 1.0 || g1 == null || g1 <= 0 || g1 > 1.0) {
+                    _mostrarAviso("Error", "Peso y Grados deben ser números válidos entre 0.01 y 1.0.");
                     return;
                   }
+
+                  // Validación opcional si hay operador
+                  double? g2;
+                  if (operador != null) {
+                    if (a2NCtrl.text.isEmpty || g2Ctrl.text.isEmpty) {
+                      _mostrarAviso("Error", "Debes completar los campos del Analítico 2.");
+                      return;
+                    }
+                    g2 = double.tryParse(g2Ctrl.text);
+                    if (g2 == null || g2 <= 0 || g2 > 1.0) {
+                      _mostrarAviso("Error", "El grado del Analítico 2 debe ser un número entre 0.01 y 1.0.");
+                      return;
+                    }
+                  }
+
                   setState(() {
                     List descs = List.from(listaCriteriosLocal[critIdx]['descriptores'] ?? []);
                     final nuevo = {
                       'contexto': contextoCtrl.text,
                       'peso': p,
-                      'analitico1': {'nombre': a1NCtrl.text, 'grado': gr1},
+                      'analitico1': {'nombre': a1NCtrl.text, 'grado': g1},
                       'operador': operador,
-                      'analitico2': operador != null ? {'nombre': a2NCtrl.text, 'grado': gr2} : null
+                      'analitico2': operador != null ? {'nombre': a2NCtrl.text, 'grado': g2} : null
                     };
                     if (descIdx == null) descs.add(nuevo); else descs[descIdx] = nuevo;
                     listaCriteriosLocal[critIdx]['descriptores'] = descs;
