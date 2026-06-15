@@ -257,7 +257,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Icon(Icons.error_outline, color: Colors.red, size: 50),
         content: const Text(
-          "La sumatoria de los pesos de los Criterios de Evaluación no puede ser mayor a 1. Por favor, modifique el peso asignado al nuevo criterio de evaluación, o reduzca el peso asignado a alguno de los Criterios de Evaluación anteriores.",
+          "La sumatoria de los pesos de los Criterios de Evaluación no puede ser mayor a 1. Por favor, modifique el peso asignado al nuevo criterio de evaluación.",
           textAlign: TextAlign.center,
         ),
         actions: [

@@ -18,6 +18,24 @@ const Color _backgroundColor = Color(0xFFD1D9E6);
 const Color _buttonSuccessColor = Color(0xFF2E7D32);
 const Color _importSuccessColor = Color(0xFFC8E6C9);
 
+class DniInputFormatter extends TextInputFormatter {
+  static String format(String text) {
+    String clean = text.replaceAll('.', '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < clean.length; i++) {
+      buffer.write(clean[i]);
+      if ((i == 1 || i == 4) && i != clean.length - 1) buffer.write('.');
+    }
+    return buffer.toString();
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final formattedText = format(newValue.text);
+    return newValue.copyWith(text: formattedText, selection: TextSelection.collapsed(offset: formattedText.length));
+  }
+}
+
 class EvaluarRubricaScreen extends StatefulWidget {
   final String rubricaId;
   final String nombreRubrica;
@@ -176,7 +194,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
             var row = sheet.rows[i];
             if (row[idxDni] == null || row[idxDni]?.value == null) continue;
             temporal.add({
-              'dni': row[idxDni]?.value.toString() ?? "",
+              'dni': DniInputFormatter.format(row[idxDni]?.value.toString() ?? ""),
               'nombre': row[idxNom]?.value.toString() ?? "",
               'apellido': row[idxApe]?.value.toString() ?? "",
             });
@@ -591,20 +609,5 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
-  }
-}
-
-class DniInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text.replaceAll('.', '');
-    if (text.isEmpty) return newValue.copyWith(text: '');
-    final buffer = StringBuffer();
-    for (int i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      if ((i == 1 || i == 4) && i != text.length - 1) buffer.write('.');
-    }
-    final formattedText = buffer.toString();
-    return newValue.copyWith(text: formattedText, selection: TextSelection.collapsed(offset: formattedText.length));
   }
 }
