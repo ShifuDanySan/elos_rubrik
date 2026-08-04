@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'auth_helper.dart';
 import 'editar_rubrica_screen.dart';
+import 'editar_rubrica_difusa_screen.dart';
 
 class CrearRubricaScreen extends StatefulWidget {
   const CrearRubricaScreen({Key? key}) : super(key: key);
@@ -16,6 +17,7 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
   final TextEditingController _nombreController = TextEditingController();
   final String __app_id = 'rubrica_evaluator';
   bool _cargando = false;
+  int? _tipoRubrica; // null al inicio para que aparezca vacío
 
   final Color primaryColor = Colors.blue;
   final Color actionButtonColor = const Color(0xFF2E7D32);
@@ -104,30 +106,40 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
       return;
     }
 
+    if (_tipoRubrica == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona un tipo de rúbrica')));
+      return;
+    }
+
     setState(() => _cargando = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final plantillaInicial = [
-          {
-            'nombre': 'Criterio 1',
-            'peso': 0.0,
-            'descriptores': [
-              {
-                'contexto': 'Descriptor 1',
-                'peso': 0.0,
-                'analitico1': {'nombre': 'Analítico 1', 'grado': 0.0},
-                'operador': null,
-                'analitico2': null,
-              }
-            ]
-          }
-        ];
+        List<Map<String, dynamic>> plantillaInicial = [];
+
+        // Si es Rúbrica Difusa (_tipoRubrica == 2), se crea una estructura por defecto con 1 nivel de 10 puntos
+        if (_tipoRubrica == 2) {
+          plantillaInicial = [
+            {
+              'nombre': 'Criterio 1',
+              'porcentaje': 100.0,
+              'descriptores': [
+                {
+                  'contexto': 'Nivel 1',
+                  'puntos': 10.0,
+                  'texto': 'Descripción del nivel',
+                  'analiticos': [],
+                }
+              ]
+            }
+          ];
+        }
 
         final docRef = await FirebaseFirestore.instance
             .collection('artifacts/$__app_id/users/${user.uid}/rubricas')
             .add({
           'nombre': _nombreController.text.trim(),
+          'tipoRubrica': _tipoRubrica,
           'userId': user.uid,
           'fechaCreacion': FieldValue.serverTimestamp(),
           'app_id': __app_id,
@@ -135,15 +147,27 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
         });
 
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EditarRubricaScreen(
-                rubricaId: docRef.id,
-                nombreInicial: _nombreController.text.trim(),
+          if (_tipoRubrica == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditarRubricaScreen(
+                  rubricaId: docRef.id,
+                  nombreInicial: _nombreController.text.trim(),
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditarRubricaDifusaScreen(
+                  rubricaId: docRef.id,
+                  nombreInicial: _nombreController.text.trim(),
+                ),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
@@ -191,7 +215,34 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
+                  const Align(alignment: Alignment.centerLeft, child: Text('SELECCIONE EL TIPO DE RÚBRICA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey))),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    value: _tipoRubrica,
+                    hint: const Text('SELECCIONE EL TIPO DE RÚBRICA'),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 1,
+                        child: Text('RÚBRICA TRADICIONAL'),
+                      ),
+                      DropdownMenuItem(
+                        value: 2,
+                        child: Text('RÚBRICA DIFUSA'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _tipoRubrica = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 15),
                   Expanded(
                     child: Container(
                       width: double.infinity,

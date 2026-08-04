@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
-class EjecutarEvaluacionScreen extends StatefulWidget {
+enum ModoEntrada { manual, slider }
+
+class EjecutarEvaluacionDifusaScreen extends StatefulWidget {
   final Map<String, dynamic> rubricaData;
   final String estudiante;
   final String rubricaId;
   final String nombre;
 
-  const EjecutarEvaluacionScreen({
+  const EjecutarEvaluacionDifusaScreen({
     super.key,
     required this.rubricaData,
     required this.estudiante,
@@ -19,12 +22,17 @@ class EjecutarEvaluacionScreen extends StatefulWidget {
   });
 
   @override
-  State<EjecutarEvaluacionScreen> createState() => _EjecutarEvaluacionScreenState();
+  State<EjecutarEvaluacionDifusaScreen> createState() => _EjecutarEvaluacionDifusaScreenState();
 }
 
-class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
-  // Guarda el índice del nivel seleccionado para cada criterio (clave: índice del criterio)
-  Map<int, int> nivelesSeleccionados = {};
+class _EjecutarEvaluacionDifusaScreenState extends State<EjecutarEvaluacionDifusaScreen> {
+  // Guarda el controlador de texto para cada criterio
+  final Map<int, TextEditingController> _puntosControllers = {};
+  // Guarda el modo de ingreso seleccionado para cada criterio
+  final Map<int, ModoEntrada> _modosEntrada = {};
+  // Guarda el valor numérico actual del Slider para cada criterio
+  final Map<int, double> _valoresSlider = {};
+
   final Color primaryDark = const Color(0xFF1A237E);
 
   final GlobalKey _keyPrimerNivel = GlobalKey();
@@ -34,13 +42,21 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   @override
   void initState() {
     super.initState();
-    _inicializarSeleccion();
+    _inicializarEstado();
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _puntosControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   void _lanzarTutorial({bool force = true}) {
     TutorialHelper().showTutorial(
       context: context,
-      pageId: 'EJECUTAR_EVALUACION_TRADICIONAL',
+      pageId: 'EJECUTAR_EVALUACION_DIFUSA',
       keys: {
         'primer_nivel': _keyPrimerNivel,
         'nota_final': _keyNotaFinal,
@@ -50,24 +66,13 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     );
   }
 
-  void _inicializarSeleccion() {
+  void _inicializarEstado() {
     var criterios = widget.rubricaData['criterios'] as List? ?? [];
     for (int i = 0; i < criterios.length; i++) {
-      nivelesSeleccionados[i] = -1;
+      _puntosControllers[i] = TextEditingController();
+      _modosEntrada[i] = ModoEntrada.manual;
+      _valoresSlider[i] = 5.00;
     }
-  }
-
-  double _obtenerPuntosNivel(Map<String, dynamic> desc) {
-    if (desc.containsKey('puntos')) {
-      return double.tryParse(desc['puntos'].toString()) ?? 0.0;
-    }
-    if (desc.containsKey('peso')) {
-      return double.tryParse(desc['peso'].toString()) ?? 0.0;
-    }
-    if (desc.containsKey('valor')) {
-      return double.tryParse(desc['valor'].toString()) ?? 0.0;
-    }
-    return 0.0;
   }
 
   double _obtenerPorcentajeCriterio(Map<String, dynamic> crit) {
@@ -80,21 +85,30 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     return 0.0;
   }
 
-  // Obtiene el texto descriptivo del nivel
   String _obtenerTextoDescriptor(Map<String, dynamic> desc) {
     return desc['texto'] ?? desc['descripcion'] ?? desc['descriptor'] ?? '';
   }
 
+  double _obtenerPuntosIngresados(int i) {
+    if (_modosEntrada[i] == ModoEntrada.slider) {
+      return _valoresSlider[i] ?? 0.0;
+    } else {
+      String texto = _puntosControllers[i]?.text.replaceAll(',', '.').trim() ?? '';
+      double? puntos = double.tryParse(texto);
+      if (puntos == null) return -1.0;
+      if (puntos < 0.0 || puntos > 10.0) return -1.0;
+      return puntos;
+    }
+  }
+
   double _calcularValorDescriptor(int i) {
-    int? nivelIndex = nivelesSeleccionados[i];
+    double puntos = _obtenerPuntosIngresados(i);
+    if (puntos < 0.0) return 0.0;
+
     var criterios = widget.rubricaData['criterios'] as List? ?? [];
-    if (nivelIndex == null || nivelIndex < 0 || i >= criterios.length) return 0.0;
+    if (i >= criterios.length) return 0.0;
 
     var crit = criterios[i];
-    var descriptores = crit['descriptores'] as List? ?? [];
-    if (nivelIndex >= descriptores.length) return 0.0;
-
-    double puntos = _obtenerPuntosNivel(descriptores[nivelIndex]);
     double porcentaje = _obtenerPorcentajeCriterio(crit);
 
     double factor = porcentaje > 1.0 ? (porcentaje / 100.0) : porcentaje;
@@ -118,7 +132,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
   bool _todasLasPreguntasRespondidas() {
     var criterios = widget.rubricaData['criterios'] as List? ?? [];
     for (int i = 0; i < criterios.length; i++) {
-      if ((nivelesSeleccionados[i] ?? -1) < 0) {
+      if (_obtenerPuntosIngresados(i) < 0.0) {
         return false;
       }
     }
@@ -129,7 +143,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
     if (!_todasLasPreguntasRespondidas()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Por favor selecciona un nivel para cada criterio antes de guardar."),
+          content: Text("Por favor ingrese un puntaje válido (0 a 10) para cada criterio antes de guardar."),
           backgroundColor: Colors.orange,
         ),
       );
@@ -178,19 +192,16 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
 
     for (int i = 0; i < criteriosRaw.length; i++) {
       var crit = criteriosRaw[i];
-      int nivelIndex = nivelesSeleccionados[i] ?? -1;
       var descriptoresRaw = crit['descriptores'] as List? ?? [];
+      var desc = descriptoresRaw.isNotEmpty ? descriptoresRaw[0] : {};
+      double puntosIngresados = _obtenerPuntosIngresados(i);
 
-      Map<String, dynamic>? nivelElegido;
-      if (nivelIndex >= 0 && nivelIndex < descriptoresRaw.length) {
-        var desc = descriptoresRaw[nivelIndex];
-        nivelElegido = {
-          'nivel_nombre': desc['contexto'] ?? desc['nombre'] ?? "NIVEL ${nivelIndex + 1}",
-          'puntos': _obtenerPuntosNivel(desc),
-          'texto': _obtenerTextoDescriptor(desc),
-          'valor_descriptor': _calcularValorDescriptor(i),
-        };
-      }
+      Map<String, dynamic> nivelElegido = {
+        'nivel_nombre': desc['contexto'] ?? desc['nombre'] ?? "NIVEL DEDICADO",
+        'puntos': puntosIngresados,
+        'texto': _obtenerTextoDescriptor(desc),
+        'valor_descriptor': _calcularValorDescriptor(i),
+      };
 
       estructuraAEnviar.add({
         'nombre': crit['nombre'],
@@ -208,6 +219,7 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
       'fecha': FieldValue.serverTimestamp(),
       'criterios': estructuraAEnviar,
       'rubricaId': widget.rubricaId,
+      'esDifusa': true,
     });
 
     if (mounted) Navigator.pop(context);
@@ -256,8 +268,12 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
               itemBuilder: (context, i) {
                 var crit = criterios[i];
                 var descriptores = crit['descriptores'] as List? ?? [];
-                int seleccionActual = nivelesSeleccionados[i] ?? -1;
+                var desc = descriptores.isNotEmpty ? descriptores[0] : {};
                 double porcentajeCriterio = _obtenerPorcentajeCriterio(crit);
+                String nombreNivel = desc['contexto'] ?? desc['nombre'] ?? "NIVEL";
+                String textoDescriptor = _obtenerTextoDescriptor(desc);
+                double puntosIngresados = _obtenerPuntosIngresados(i);
+                ModoEntrada modoActual = _modosEntrada[i] ?? ModoEntrada.manual;
 
                 return Card(
                   elevation: 4,
@@ -279,64 +295,130 @@ class _EjecutarEvaluacionScreenState extends State<EjecutarEvaluacionScreen> {
                           ),
                         const Divider(height: 20),
 
-                        // Lista de niveles disponibles para seleccionar
-                        Column(
-                          children: descriptores.asMap().entries.map((entry) {
-                            int j = entry.key;
-                            var desc = entry.value;
-                            double puntosNivel = _obtenerPuntosNivel(desc);
-                            String nombreNivel = desc['contexto'] ?? desc['nombre'] ?? "Nivel ${j + 1}";
-                            String textoDescriptor = _obtenerTextoDescriptor(desc);
-
-                            return Container(
-                              key: (i == 0 && j == 0) ? _keyPrimerNivel : null,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: seleccionActual == j
-                                    ? const Color(0xFF00796B).withOpacity(0.12)
-                                    : Colors.grey.withOpacity(0.05),
-                                border: Border.all(
-                                  color: seleccionActual == j ? const Color(0xFF00796B) : Colors.grey.shade300,
-                                  width: seleccionActual == j ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
+                        // Contenedor principal del criterio
+                        Container(
+                          key: i == 0 ? _keyPrimerNivel : null,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00796B).withOpacity(0.05),
+                            border: Border.all(
+                              color: puntosIngresados >= 0.0 ? const Color(0xFF00796B) : Colors.grey.shade300,
+                              width: puntosIngresados >= 0.0 ? 2 : 1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "NIVEL (${nombreNivel.toUpperCase()})",
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B), fontSize: 16),
                               ),
-                              child: RadioListTile<int>(
-                                activeColor: const Color(0xFF00796B),
-                                value: j,
-                                groupValue: seleccionActual,
-                                onChanged: (int? nuevoValor) {
-                                  setState(() {
-                                    nivelesSeleccionados[i] = nuevoValor ?? -1;
-                                  });
-                                },
-                                title: Text(
-                                  "NIVEL ${j + 1} (${nombreNivel.toUpperCase()})",
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B)),
+                              if (textoDescriptor.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  textoDescriptor,
+                                  style: const TextStyle(color: Colors.black87, fontSize: 13),
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              ],
+                              const SizedBox(height: 12),
+
+                              // Seleccionador de Modo (Manual / Slider)
+                              Center(
+                                child: SegmentedButton<ModoEntrada>(
+                                  segments: const [
+                                    ButtonSegment<ModoEntrada>(
+                                      value: ModoEntrada.manual,
+                                      label: Text("Manual"),
+                                      icon: Icon(Icons.edit_note),
+                                    ),
+                                    ButtonSegment<ModoEntrada>(
+                                      value: ModoEntrada.slider,
+                                      label: Text("Slider"),
+                                      icon: Icon(Icons.tune),
+                                    ),
+                                  ],
+                                  selected: {modoActual},
+                                  onSelectionChanged: (Set<ModoEntrada> newSelection) {
+                                    setState(() {
+                                      _modosEntrada[i] = newSelection.first;
+                                      // Sincronizar el valor al cambiar de modo
+                                      if (newSelection.first == ModoEntrada.slider) {
+                                        double parsed = double.tryParse(_puntosControllers[i]?.text.replaceAll(',', '.') ?? '') ?? 5.0;
+                                        _valoresSlider[i] = parsed.clamp(0.0, 10.0);
+                                      } else {
+                                        _puntosControllers[i]?.text = (_valoresSlider[i] ?? 0.0).toStringAsFixed(2);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Renderizado condicional según el modo
+                              if (modoActual == ModoEntrada.manual) ...[
+                                TextField(
+                                  controller: _puntosControllers[i],
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d{0,2}')),
+                                  ],
+                                  onChanged: (val) {
+                                    setState(() {});
+                                  },
+                                  decoration: InputDecoration(
+                                    labelText: "Puntos alcanzados (0.00 a 10.00)",
+                                    hintText: "Ej. 8.50",
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    suffixIcon: const Icon(Icons.edit, color: Color(0xFF00796B)),
+                                  ),
+                                ),
+                              ] else ...[
+                                Column(
                                   children: [
-                                    Text("Puntos: $puntosNivel"),
-                                    if (textoDescriptor.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        textoDescriptor,
-                                        style: const TextStyle(
-                                          color: Colors.black87,
-                                          fontSize: 13,
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text("Puntaje asignado:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF00796B),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            (_valoresSlider[i] ?? 0.0).toStringAsFixed(2),
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
+                                    Slider(
+                                      value: _valoresSlider[i] ?? 0.0,
+                                      min: 0.0,
+                                      max: 10.0,
+                                      divisions: 1000,
+                                      activeColor: const Color(0xFF00796B),
+                                      inactiveColor: Colors.grey.shade300,
+                                      label: (_valoresSlider[i] ?? 0.0).toStringAsFixed(2),
+                                      onChanged: (double val) {
+                                        setState(() {
+                                          _valoresSlider[i] = double.parse(val.toStringAsFixed(2));
+                                        });
+                                      },
+                                    ),
                                   ],
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                              ],
+                            ],
+                          ),
                         ),
 
                         // Muestra el Valor del Descriptor resultante para este criterio
-                        if (seleccionActual >= 0 && seleccionActual < descriptores.length) ...[
+                        if (puntosIngresados >= 0.0) ...[
                           const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.all(10),

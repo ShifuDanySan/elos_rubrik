@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'evaluar_rubrica_screen.dart';
 import 'editar_rubrica_screen.dart';
+import 'editar_rubrica_difusa_screen.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
@@ -20,6 +21,7 @@ class ListaRubricasScreen extends StatefulWidget {
 class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   DateTime? _fechaFiltro;
   String _filtroNombre = "";
+  int? _tipoRubricaFiltro; // null: sin selección, 1: Tradicional, 2: Difusa
   bool _tutorialPresentado = false;
 
   final GlobalKey _keyBuscador = GlobalKey();
@@ -80,7 +82,28 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 title: const Text("Editar"),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => EditarRubricaScreen(rubricaId: docId, nombreInicial: data['nombre'] ?? '')));
+                  final int tipo = data['tipoRubrica'] ?? 1;
+                  if (tipo == 2) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditarRubricaDifusaScreen(
+                          rubricaId: docId,
+                          nombreInicial: data['nombre'] ?? '',
+                        ),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditarRubricaScreen(
+                          rubricaId: docId,
+                          nombreInicial: data['nombre'] ?? '',
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
               ListTile(
@@ -160,24 +183,67 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 color: blueCrear,
                 borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25))
             ),
-            child: TextField(
-              key: _keyBuscador,
-              decoration: InputDecoration(
-                hintText: "Buscar rúbrica...",
-                prefixIcon: const Icon(Icons.search, color: blueCrear),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-              ),
-              onChanged: (val) => setState(() => _filtroNombre = val),
+            child: Column(
+              children: [
+                TextField(
+                  key: _keyBuscador,
+                  decoration: InputDecoration(
+                    hintText: "Buscar rúbrica...",
+                    prefixIcon: const Icon(Icons.search, color: blueCrear),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                  ),
+                  onChanged: (val) => setState(() => _filtroNombre = val),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: _tipoRubricaFiltro,
+                  hint: const Text("SELECCIONE EL TIPO DE RÚBRICA", style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 1,
+                      child: Text('RÚBRICA TRADICIONAL', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    DropdownMenuItem(
+                      value: 2,
+                      child: Text('RÚBRICA DIFUSA', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _tipoRubricaFiltro = val;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            child: _tipoRubricaFiltro == null
+                ? const Center(
+              child: Text(
+                "Por favor, seleccione un tipo de rúbrica para continuar",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                textAlign: TextAlign.center,
+              ),
+            )
+                : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance.collection('artifacts/$__app_id/users/$userId/rubricas').snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 var docs = snapshot.data!.docs;
+
+                docs = docs.where((d) {
+                  final tipo = d.data()['tipoRubrica'] ?? 1;
+                  return tipo == _tipoRubricaFiltro;
+                }).toList();
 
                 if (_filtroNombre.isNotEmpty) {
                   final busca = _normalizarTexto(_filtroNombre);
@@ -188,6 +254,15 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                     final f = (d.data()['fechaCreacion'] as Timestamp?)?.toDate();
                     return f != null && f.day == _fechaFiltro!.day && f.month == _fechaFiltro!.month && f.year == _fechaFiltro!.year;
                   }).toList();
+                }
+
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "No se encontraron rúbricas para esta selección.",
+                      style: TextStyle(fontSize: 15, color: Colors.blueGrey),
+                    ),
+                  );
                 }
 
                 return ListView.builder(

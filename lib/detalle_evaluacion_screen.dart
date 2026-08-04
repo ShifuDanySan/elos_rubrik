@@ -65,24 +65,35 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.psychology, color: _primaryColor),
             SizedBox(width: 10),
-            Text("Lógica de Evaluación", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _primaryColor)),
+            Text(
+              "Lógica de Evaluación",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _primaryColor),
+            ),
           ],
         ),
-        content: SingleChildScrollView(
+        content: const SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("Este reporte utiliza Lógica Compensatoria Difusa (LCD) para garantizar una calificación justa y pedagógica.",
+              Text(
+                "Este reporte detalla los criterios evaluados, la ponderación aplicada y el nivel de desempeño seleccionado.",
                 style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.black54),
               ),
-              const SizedBox(height: 20),
-              _itemInfo(Icons.analytics_outlined, "Analíticos y Grados", "Cada evidencia alimentó un predicado lógico basado en el grado de desempeño."),
-              _itemInfo(Icons.balance, "Principio de Compensación", "Las fortalezas demostradas compensan debilidades menores en los descriptores."),
-              _itemInfo(Icons.functions, "Suma Positiva", "El resultado mostrado es el valor calculado y persistido durante la evaluación."),
+              SizedBox(height: 20),
+              _ItemInfo(
+                icon: Icons.analytics_outlined,
+                titulo: "Ponderación y Puntos",
+                desc: "El valor del descriptor resulta de multiplicar los puntos alcanzados en el nivel por la ponderación asignada al criterio.",
+              ),
+              _ItemInfo(
+                icon: Icons.check_circle_outline,
+                titulo: "Nivel Seleccionado",
+                desc: "Cada criterio muestra únicamente el nivel seleccionado con su descripción y calificación.",
+              ),
             ],
           ),
         ),
@@ -91,29 +102,6 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
             onPressed: () => Navigator.pop(context),
             child: const Text("ENTENDIDO", style: TextStyle(fontWeight: FontWeight.bold, color: _primaryColor)),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemInfo(IconData icon, String titulo, String desc) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 22, color: _accentColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _primaryColor)),
-                const SizedBox(height: 4),
-                Text(desc, style: const TextStyle(fontSize: 12, color: Colors.black87)),
-              ],
-            ),
-          )
         ],
       ),
     );
@@ -146,7 +134,11 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
               onPressed: () => PdfService.generarReporteEvaluacion(widget.evaluacion),
               icon: const Icon(Icons.picture_as_pdf, size: 18),
               label: const Text("PDF", style: TextStyle(fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(backgroundColor: _accentColor, foregroundColor: _primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accentColor,
+                foregroundColor: _primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
             ),
           ),
           AuthHelper.logoutButton(context),
@@ -164,14 +156,28 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
                 const SizedBox(height: 25),
                 Container(
                   key: _keyTablaResumen,
-                  child: Row(children: [const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20), const SizedBox(width: 8), Text("DESGLOSE DE RESULTADOS", style: TextStyle(fontWeight: FontWeight.w900, color: _primaryColor.withOpacity(0.8), fontSize: 13, letterSpacing: 1.2))]),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "DESGLOSE DE RESULTADOS",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: _primaryColor.withOpacity(0.8),
+                          fontSize: 13,
+                          letterSpacing: 1.2,
+                        ),
+                      )
+                    ],
+                  ),
                 ),
                 const Divider(thickness: 2, color: _primaryColor),
                 const SizedBox(height: 10),
                 ...criterios.asMap().entries.map((entry) {
                   int idx = entry.key;
                   var c = entry.value;
-                  return _buildCriterioTile(c, idx == 0 ? _keyListaDesglosada : null);
+                  return _buildCriterioTile(c, idx == 0 ? _keyListaDesglosada : null, idx + 1);
                 }).toList(),
               ],
             ),
@@ -184,7 +190,17 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
   Widget _buildInfoCard(String alumno, String rubrica, String fecha, double nota) {
     return Container(
       key: _keyPuntajeTotal,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: _primaryColor.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 5))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -202,8 +218,15 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
             ),
             Container(
               padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(color: _primaryColor, shape: BoxShape.circle, border: Border.all(color: _accentColor, width: 3)),
-              child: Text(nota.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              decoration: BoxDecoration(
+                color: _primaryColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: _accentColor, width: 3),
+              ),
+              child: Text(
+                nota.toStringAsFixed(2),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -211,8 +234,20 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
     );
   }
 
-  Widget _buildCriterioTile(Map<String, dynamic> criterio, GlobalKey? key) {
-    final List descriptores = criterio['descriptores'] ?? [];
+  Widget _buildCriterioTile(Map<String, dynamic> criterio, GlobalKey? key, int numeroCriterio) {
+    final double porcentaje = (criterio['porcentaje'] ?? 0.0).toDouble();
+    final Map<String, dynamic>? nivelSeleccionado = criterio['nivel_seleccionado'];
+    final bool esDifusa = widget.evaluacion['esDifusa'] ?? false;
+
+    // Recupera la lista de descriptores si se encuentra guardada directamente o intenta evaluar el nivel seleccionado
+    final List descriptores = criterio['descriptores'] ?? (nivelSeleccionado != null ? [nivelSeleccionado] : []);
+
+    String tituloNivel = "NIVEL SELECCIONADO";
+    if (esDifusa) {
+      tituloNivel = "NIVEL DE LOGRO ALCANZADO EN EL DESARROLLO DE LA COMPETENCIA (GRADO EN EL QUE SE ALCANZÓ LA COMPETENCIA)";
+    } else if (nivelSeleccionado != null) {
+      tituloNivel = (nivelSeleccionado['nivel_nombre'] ?? 'NIVEL SELECCIONADO').toString().toUpperCase();
+    }
 
     return Card(
       key: key,
@@ -225,60 +260,174 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
         backgroundColor: Colors.white,
         collapsedBackgroundColor: Colors.white,
         iconColor: _primaryColor,
-        title: Text(criterio['nombre'] ?? 'Criterio',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 16)),
-        children: descriptores.map((desc) {
-          final List analiticos = desc['analiticos'] ?? [];
-          final double valorDescriptor = (desc['resultado_descriptor'] ?? 0.0).toDouble();
+        title: Text(
+          "CRITERIO $numeroCriterio: ${(criterio['nombre'] ?? 'Criterio').toString().toUpperCase()}",
+          style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor, fontSize: 15),
+        ),
+        subtitle: porcentaje > 0
+            ? Text("Ponderación: $porcentaje%", style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey))
+            : null,
+        children: [
+          if (nivelSeleccionado != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              color: _backgroundColor.withOpacity(0.08),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.star, size: 18, color: Color(0xFF00796B)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                tituloNivel,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF00796B)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (nivelSeleccionado.containsKey('puntos'))
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00796B).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            "Puntos: ${nivelSeleccionado['puntos']}",
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00796B), fontSize: 12),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if ((nivelSeleccionado['texto'] ?? nivelSeleccionado['descripcion'] ?? '').toString().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      nivelSeleccionado['texto'] ?? nivelSeleccionado['descripcion'] ?? '',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "VALOR DESCRIPTOR:",
+                          style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        Text(
+                          ((nivelSeleccionado['valor_descriptor'] ?? 0.0) as num).toStringAsFixed(2),
+                          style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w900, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (descriptores.isNotEmpty) ...[
+            ...descriptores.map((desc) {
+              final double valorDescriptor = ((desc['valor_descriptor'] ?? desc['resultado_descriptor'] ?? 0.0) as num).toDouble();
+              final String texto = desc['texto'] ?? desc['descripcion'] ?? desc['contexto'] ?? '';
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-            color: _backgroundColor.withOpacity(0.05),
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                color: _backgroundColor.withOpacity(0.05),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.description_outlined, size: 16, color: _accentColor),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  desc['nivel_nombre'] ?? desc['contexto'] ?? 'Descriptor',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _primaryColor.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            valorDescriptor.toStringAsFixed(2),
+                            style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor, fontSize: 15),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (texto.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(texto, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                    ],
+                    if (desc != descriptores.last) const Divider(height: 20),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ItemInfo extends StatelessWidget {
+  final IconData icon;
+  final String titulo;
+  final String desc;
+
+  const _ItemInfo({
+    required this.icon,
+    required this.titulo,
+    required this.desc,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: _accentColor),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.description_outlined, size: 16, color: _accentColor),
-                        const SizedBox(width: 8),
-                        Text(desc['contexto'] ?? 'Descriptor',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _primaryColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _primaryColor.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        valorDescriptor.toStringAsFixed(2),
-                        style: const TextStyle(fontWeight: FontWeight.w900, color: _primaryColor, fontSize: 15),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                ...analiticos.map((ana) => Padding(
-                  padding: const EdgeInsets.only(left: 24, bottom: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(ana['nombre'], style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                      Text((ana['valor_asignado'] ?? 0.0).toStringAsFixed(2),
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-                    ],
-                  ),
-                )).toList(),
-                if (desc != descriptores.last) const Divider(height: 20),
+                Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _primaryColor)),
+                const SizedBox(height: 4),
+                Text(desc, style: const TextStyle(fontSize: 12, color: Colors.black87)),
               ],
             ),
-          );
-        }).toList(),
+          )
+        ],
       ),
     );
   }
@@ -286,6 +435,7 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
 
 class _StaticFloatingBackground extends StatelessWidget {
   const _StaticFloatingBackground();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -301,7 +451,10 @@ class _StaticFloatingBackground extends StatelessWidget {
               child: Container(
                 width: 50 + random.nextDouble() * 100,
                 height: 50 + random.nextDouble() * 100,
-                decoration: BoxDecoration(color: i % 2 == 0 ? _primaryColor : _accentColor, borderRadius: BorderRadius.circular(15)),
+                decoration: BoxDecoration(
+                  color: i % 2 == 0 ? _primaryColor : _accentColor,
+                  borderRadius: BorderRadius.circular(15),
+                ),
               ),
             ),
           );

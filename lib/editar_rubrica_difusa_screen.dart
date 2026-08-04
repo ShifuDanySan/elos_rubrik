@@ -5,23 +5,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
-class EditarRubricaScreen extends StatefulWidget {
+class EditarRubricaDifusaScreen extends StatefulWidget {
   final String rubricaId;
   final String nombreInicial;
 
-  const EditarRubricaScreen({super.key, required this.rubricaId, required this.nombreInicial});
+  const EditarRubricaDifusaScreen({
+    super.key,
+    required this.rubricaId,
+    required this.nombreInicial,
+  });
 
   @override
-  State<EditarRubricaScreen> createState() => _EditarRubricaScreenState();
+  State<EditarRubricaDifusaScreen> createState() => _EditarRubricaDifusaScreenState();
 }
 
-class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsBindingObserver {
+class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> with WidgetsBindingObserver {
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
   final GlobalKey _keySumaText = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
-  final GlobalKey _keyPrimerAddDescriptor = GlobalKey();
   final GlobalKey _keyPrimerEditCriterio = GlobalKey();
   final GlobalKey _keyEditDescriptorTutorial = GlobalKey();
   final GlobalKey _keyBotonFinalizar = GlobalKey();
@@ -48,7 +51,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     super.dispose();
   }
 
-  // Método auxiliar para mostrar alertas de validación bloqueantes
   void _mostrarAviso(String titulo, String mensaje) {
     showDialog(
       context: context,
@@ -66,17 +68,17 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("¿Cómo organizar la rúbrica?"),
+        title: const Text("¿Cómo organizar la rúbrica difusa?"),
         content: const SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text("DEFINICIONES:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text("1. CRITERIOS DE EVALUACIÓN: son las categorías principales (competencias). El 'Porcentaje' define su importancia total (debe sumar 100%)."),
-              Text("2. NIVELES GLOBALES: definen la escala de calificación (ej. 'Excelente', 'Regular') y sus puntos (0.1 a 10), comunes para todos los criterios."),
+              Text("2. NIVELES GLOBALES: definen la escala de calificación y sus puntos (fijos en 10), comunes para todos los criterios."),
               Text("3. DESCRIPTORES: texto explicativo para cada nivel dentro de un criterio específico."),
               Divider(height: 30),
-              Text("EJEMPLO (Cátedra de Programación):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("EJEMPLO (Rúbrica Difusa):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text("• Criterio de Evaluación: 'Calidad de Código' (Porcentaje 15%)."),
               Text("• Nivel: 'Excelente' (Puntos 10) -> Valor Descriptor: 1.5."),
             ],
@@ -105,15 +107,22 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     if (mounted && doc.exists) {
       final criteriosData = List.from(doc.data()?['criterios'] ?? []);
 
-      // Extraer estructura de niveles compartidos del primer criterio existente si los hay
       List<Map<String, dynamic>> tempNiveles = [];
       if (criteriosData.isNotEmpty) {
         final List primerDescs = criteriosData.first['descriptores'] ?? [];
         for (var d in primerDescs) {
           tempNiveles.add({
             'contexto': d['contexto'] ?? '',
-            'peso': double.tryParse(d['peso']?.toString() ?? '0') ?? 0.0,
+            'peso': 10.0,
           });
+        }
+      }
+
+      for (var crit in criteriosData) {
+        List descs = crit['descriptores'] ?? [];
+        for (var d in descs) {
+          d['peso'] = 10.0;
+          d['puntos'] = 10.0;
         }
       }
 
@@ -194,7 +203,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     );
   }
 
-  // Sincroniza la lista de niveles globales con todos los criterios
   void _sincronizarNivelesConCriterios() {
     for (var c in listaCriteriosLocal) {
       List descsExistentes = List.from(c['descriptores'] ?? []);
@@ -204,15 +212,16 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         final ng = nivelesGlobales[i];
         String descTexto = '';
 
-        // Preservar texto de descriptor si ya existía en esa posición
         if (i < descsExistentes.length) {
-          descTexto = descsExistentes[i]['descriptor'] ?? '';
+          descTexto = descsExistentes[i]['descriptor'] ?? descsExistentes[i]['texto'] ?? '';
         }
 
         nuevosDescs.add({
           'contexto': ng['contexto'],
-          'peso': ng['peso'],
+          'peso': 10.0,
+          'puntos': 10.0,
           'descriptor': descTexto,
+          'texto': descTexto,
         });
       }
 
@@ -222,7 +231,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   void _mostrarDialogoNivelGlobal({Map<String, dynamic>? existente, int? index}) {
     final nivelCtrl = TextEditingController(text: existente?['contexto'] ?? '');
-    final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? '');
+    final pesoCtrl = TextEditingController(text: '10');
 
     showDialog(
       context: context,
@@ -235,11 +244,12 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             const SizedBox(height: 10),
             TextField(
               controller: pesoCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*[\.,]?\d{0,2}')),
-              ],
-              decoration: const InputDecoration(labelText: 'Puntos (0.1 a 10)'),
+              readOnly: true,
+              enabled: false,
+              decoration: const InputDecoration(
+                labelText: 'Puntos (Por defecto 10)',
+                filled: true,
+              ),
             ),
           ],
         ),
@@ -247,25 +257,16 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('CANCELAR')),
           ElevatedButton(
             onPressed: () {
-              if (nivelCtrl.text.trim().isEmpty || pesoCtrl.text.trim().isEmpty) {
-                _mostrarAviso("Error", "Todos los campos son obligatorios.");
+              if (nivelCtrl.text.trim().isEmpty) {
+                _mostrarAviso("Error", "El nombre del nivel es obligatorio.");
                 return;
               }
-
-              String textoPeso = pesoCtrl.text.trim().replaceAll(',', '.');
-              double? p = double.tryParse(textoPeso);
-
-              if (p == null || p < 0.1 || p > 10.0) {
-                _mostrarAviso("Error", "Los puntos deben ser un número de 0.1 a 10 (hasta dos decimales).");
-                return;
-              }
-
-              p = double.parse(p.toStringAsFixed(2));
 
               setState(() {
                 final nuevoNivel = {
                   'contexto': nivelCtrl.text.trim(),
-                  'peso': p,
+                  'peso': 10.0,
+                  'puntos': 10.0,
                 };
 
                 if (index == null) {
@@ -287,6 +288,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   }
 
   void _eliminarNivelGlobal(int index) {
+    if (nivelesGlobales.length <= 1) {
+      _mostrarAviso("Aviso", "El nivel no puede ser eliminado (debe existir al menos un nivel).");
+      return;
+    }
     setState(() {
       nivelesGlobales.removeAt(index);
       _sincronizarNivelesConCriterios();
@@ -305,30 +310,16 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "NIVELES DE EVALUACIÓN (GLOBALES)",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1A237E)),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _mostrarDialogoNivelGlobal(),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text("Añadir Nivel"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[800],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                ),
-              )
-            ],
+          const Text(
+            "NIVELES DE EVALUACIÓN (GLOBALES)",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1A237E)),
           ),
+          const SizedBox(height: 8),
           if (nivelesGlobales.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                "No hay niveles definidos. Añada niveles globales para que se apliquen a todos los criterios.",
+                "No hay niveles definidos.",
                 style: TextStyle(color: Colors.red, fontSize: 12),
               ),
             )
@@ -339,6 +330,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               children: nivelesGlobales.asMap().entries.map((e) {
                 final idx = e.key;
                 final ng = e.value;
+
                 return InkWell(
                   onTap: () => _mostrarDialogoNivelGlobal(existente: ng, index: idx),
                   borderRadius: BorderRadius.circular(20),
@@ -347,13 +339,13 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                     label: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("${ng['contexto'].toString().toUpperCase()} (${ng['peso']} pts)"),
+                        Text("${ng['contexto'].toString().toUpperCase()} (10 pts)"),
                         const SizedBox(width: 4),
                         const Icon(Icons.edit, size: 14, color: Colors.blue),
                       ],
                     ),
-                    onDeleted: () => _eliminarNivelGlobal(idx),
-                    deleteIcon: const Icon(Icons.close, size: 18),
+                    onDeleted: nivelesGlobales.length > 1 ? () => _eliminarNivelGlobal(idx) : null,
+                    deleteIcon: nivelesGlobales.length > 1 ? const Icon(Icons.close, size: 18) : null,
                     avatar: CircleAvatar(
                       backgroundColor: headerColor,
                       child: Text("${idx + 1}", style: const TextStyle(color: Colors.white, fontSize: 10)),
@@ -402,7 +394,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
       await FirebaseFirestore.instance
           .collection('artifacts/$__app_id/users/$userId/rubricas')
           .doc(widget.rubricaId)
-          .update({'criterios': listaCriteriosLocal});
+          .update({
+        'criterios': listaCriteriosLocal,
+        'fechaModificacion': FieldValue.serverTimestamp(),
+      });
       _mostrarConfirmacionFinal();
     } catch (e) {
       _mostrarAlertaErrores(["Error de conexión: $e"]);
@@ -471,7 +466,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
-        content: const Text("Rúbrica guardada exitosamente en la nube.", textAlign: TextAlign.center),
+        content: const Text("Rúbrica difusa guardada exitosamente en la nube.", textAlign: TextAlign.center),
         actions: [Center(child: ElevatedButton(onPressed: () { Navigator.pop(ctx); Navigator.pop(context); }, child: const Text("FINALIZAR")))],
       ),
     );
@@ -493,7 +488,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   void _mostrarDialogoCriterio({Map<String, dynamic>? existente, int? index}) {
     final nombreCtrl = TextEditingController(text: existente?['nombre'] ?? '');
-    final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? '');
+    final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? existente?['porcentaje']?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -534,23 +529,28 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
             List<dynamic> listaTemp = List.from(listaCriteriosLocal);
 
-            // Generar descriptores usando los niveles globales actuales
-            List nuevosDescriptores = nivelesGlobales.map((ng) => {
-              'contexto': ng['contexto'],
-              'peso': ng['peso'],
-              'descriptor': '',
+            List nuevosDescriptores = nivelesGlobales.map((ng) {
+              return {
+                'contexto': ng['contexto'],
+                'peso': 10.0,
+                'puntos': 10.0,
+                'descriptor': '',
+                'texto': '',
+              };
             }).toList();
 
             if (index == null) {
               listaTemp.add({
                 'nombre': nombreCtrl.text.trim(),
                 'peso': peso,
+                'porcentaje': peso,
                 'descriptores': nuevosDescriptores,
               });
             } else {
               listaTemp[index] = {
                 'nombre': nombreCtrl.text.trim(),
                 'peso': peso,
+                'porcentaje': peso,
                 'descriptores': listaCriteriosLocal[index]['descriptores'] ?? nuevosDescriptores,
               };
             }
@@ -577,9 +577,8 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   }
 
   void _mostrarDialogoDescriptor(int critIdx, int descIdx, Map<String, dynamic> existente) {
-    final descriptorCtrl = TextEditingController(text: existente['descriptor'] ?? '');
+    final descriptorCtrl = TextEditingController(text: existente['descriptor'] ?? existente['texto'] ?? '');
     final String nombreNivel = existente['contexto'] ?? '';
-    final double puntosNivel = double.tryParse(existente['peso']?.toString() ?? '0') ?? 0.0;
 
     showDialog(
       context: context,
@@ -588,7 +587,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: Text('Descriptor: $nombreNivel ($puntosNivel pts)', style: const TextStyle(fontSize: 16))),
+              Expanded(child: Text('Descriptor: $nombreNivel (10 pts)', style: const TextStyle(fontSize: 16))),
               IconButton(
                 icon: const Icon(Icons.help_outline, color: Colors.blue),
                 onPressed: () {
@@ -632,8 +631,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                     List descs = List.from(listaCriteriosLocal[critIdx]['descriptores'] ?? []);
                     descs[descIdx] = {
                       'contexto': nombreNivel,
-                      'peso': puntosNivel,
+                      'peso': 10.0,
+                      'puntos': 10.0,
                       'descriptor': descriptorCtrl.text.trim(),
+                      'texto': descriptorCtrl.text.trim(),
                     };
                     listaCriteriosLocal[critIdx]['descriptores'] = descs;
                   });
@@ -648,6 +649,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   }
 
   void _eliminarElemento(int cIdx) {
+    if (listaCriteriosLocal.length <= 1) {
+      _mostrarAviso("Aviso", "La rúbrica debe tener al menos un criterio.");
+      return;
+    }
     setState(() {
       listaCriteriosLocal.removeAt(cIdx);
     });
@@ -686,7 +691,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               itemBuilder: (context, cIdx) {
                 final c = listaCriteriosLocal[cIdx];
                 final List descs = c['descriptores'] ?? [];
-                final double pesoCrit = double.tryParse(c['peso'].toString()) ?? 0.0;
+                final double pesoCrit = double.tryParse(c['peso']?.toString() ?? c['porcentaje']?.toString() ?? '0') ?? 0.0;
 
                 List<String> erroresCrit = [];
                 if (pesoCrit == 0) erroresCrit.add("Porcentaje en 0%");
@@ -719,11 +724,9 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                         children: [
                           ...descs.asMap().entries.map((e) {
                             final d = e.value;
-                            final String descTexto = d['descriptor']?.toString() ?? '';
-                            final double puntosNivel = double.tryParse(d['peso']?.toString() ?? '0') ?? 0.0;
+                            final String descTexto = d['descriptor']?.toString() ?? d['texto']?.toString() ?? '';
 
-                            // Cálculo del valor del descriptor
-                            final double valorDescriptor = (pesoCrit / 100.0) * puntosNivel;
+                            final double valorDescriptor = (pesoCrit / 100.0) * 10.0;
                             final String valorDescriptorFormatted = (valorDescriptor % 1 == 0)
                                 ? valorDescriptor.toInt().toString()
                                 : valorDescriptor.toStringAsFixed(1);
@@ -745,7 +748,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          "NIVEL ${e.key + 1} (${d['contexto'].toUpperCase()} - PUNTOS: $puntosNivel - VALOR DESCRIPTOR: $valorDescriptorFormatted)",
+                                          "NIVEL ${e.key + 1} (${d['contexto'].toUpperCase()} - PUNTOS: 10 - VALOR DESCRIPTOR: $valorDescriptorFormatted)",
                                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                         ),
                                       ),
@@ -788,10 +791,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton.icon(key: _keyBotonFisico, onPressed: () => _mostrarDialogoCriterio(), icon: const Icon(Icons.add, color: Colors.white), label: const Text("AÑADIR CRITERIO DE EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])),
-                ElevatedButton.icon(key: _keyBotonFinalizar, onPressed: _intentarFinalizar, icon: const Icon(Icons.cloud_upload, color: Colors.white), label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700])),
+                ElevatedButton.icon(key: _keyBotonFinalizar, onPressed: _intentarFinalizar, icon: const Icon(Icons.cloud_upload, color: Colors.white), label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800])),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

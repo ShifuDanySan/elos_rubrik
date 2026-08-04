@@ -10,6 +10,7 @@ import 'dart:html' as html;
 
 import 'auth_helper.dart';
 import 'ejecutar_evaluacion_screen.dart';
+import 'ejecutar_evaluacion_difusa_screen.dart';
 import 'tutorial_helper.dart';
 
 const Color _primaryColor = Color(0xFF3949AB);
@@ -577,20 +578,35 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       if (!doc.exists) throw "La rúbrica no existe.";
 
       final rubricaCompleta = doc.data() as Map<String, dynamic>;
+      final int tipoRubrica = rubricaCompleta['tipoRubrica'] ?? 1;
 
       if (!mounted) return;
 
-      await Navigator.push(
+      if (tipoRubrica == 2) {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => EjecutarEvaluacionScreen(
-                rubricaId: widget.rubricaId,
-                nombre: widget.nombreRubrica,
-                estudiante: nombreEstudiante,
-                rubricaData: rubricaCompleta,
-              )
-          )
-      );
+            builder: (_) => EjecutarEvaluacionDifusaScreen(
+              rubricaId: widget.rubricaId,
+              nombre: widget.nombreRubrica,
+              estudiante: nombreEstudiante,
+              rubricaData: rubricaCompleta,
+            ),
+          ),
+        );
+      } else {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EjecutarEvaluacionScreen(
+              rubricaId: widget.rubricaId,
+              nombre: widget.nombreRubrica,
+              estudiante: nombreEstudiante,
+              rubricaData: rubricaCompleta,
+            ),
+          ),
+        );
+      }
 
       if (mounted) {
         setState(() {

@@ -17,6 +17,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   final String __app_id = 'rubrica_evaluator';
   DateTime? _fechaFiltro;
   String _filtroEstudiante = "";
+  int? _tipoRubricaFiltro; // null: sin selección, 1: Tradicional, 2: Difusa
 
   final GlobalKey _keyBuscadorEstudiante = GlobalKey();
   final GlobalKey _keyFiltroCalendario = GlobalKey();
@@ -80,10 +81,12 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
     const Color primaryColor = Color(0xFF1A237E);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        title: const Text("Mis Evaluaciones"),
+        title: const Text("Mis Evaluaciones", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           IconButton(
@@ -106,26 +109,82 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              key: _keyBuscadorEstudiante,
-              decoration: InputDecoration(
-                hintText: "Buscar estudiante...",
-                prefixIcon: const Icon(Icons.person_search, color: primaryColor),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                filled: true,
-                fillColor: Colors.white,
-                suffixIcon: _filtroEstudiante.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _filtroEstudiante = ""))
-                    : null,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: primaryColor,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(25),
+                bottomRight: Radius.circular(25),
               ),
-              onChanged: (val) => setState(() => _filtroEstudiante = val),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  key: _keyBuscadorEstudiante,
+                  decoration: InputDecoration(
+                    hintText: "Buscar estudiante...",
+                    prefixIcon: const Icon(Icons.person_search, color: primaryColor),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: _filtroEstudiante.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() => _filtroEstudiante = ""),
+                    )
+                        : null,
+                  ),
+                  onChanged: (val) => setState(() => _filtroEstudiante = val),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: _tipoRubricaFiltro,
+                  hint: const Text(
+                    "SELECCIONE EL TIPO DE RÚBRICA",
+                    style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 1,
+                      child: Text('RÚBRICA TRADICIONAL', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    DropdownMenuItem(
+                      value: 2,
+                      child: Text('RÚBRICA DIFUSA', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _tipoRubricaFiltro = val;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
-
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            child: _tipoRubricaFiltro == null
+                ? const Center(
+              child: Text(
+                "Por favor, seleccione un tipo de rúbrica para continuar",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                textAlign: TextAlign.center,
+              ),
+            )
+                : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
                   .collection('artifacts/$__app_id/users/$userId/evaluaciones')
                   .snapshots(),
@@ -134,6 +193,16 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
                 var docs = snapshot.data?.docs ?? [];
+
+                // Filtrar por tipo de rúbrica (1: Tradicional, 2: Difusa)
+                docs = docs.where((d) {
+                  final esDifusa = d.data()['esDifusa'] ?? false;
+                  if (_tipoRubricaFiltro == 2) {
+                    return esDifusa == true;
+                  } else {
+                    return esDifusa == false;
+                  }
+                }).toList();
 
                 if (_filtroEstudiante.isNotEmpty) {
                   final busqueda = _normalizarTexto(_filtroEstudiante);
@@ -158,10 +227,10 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                   return dateB.compareTo(dateA);
                 });
 
-                if (docs.isEmpty) return const Center(child: Text("No hay evaluaciones que coincidan."));
+                if (docs.isEmpty) return const Center(child: Text("No hay evaluaciones que coincidan.", style: TextStyle(fontSize: 15, color: Colors.blueGrey)));
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.all(12),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
                     final data = docs[index].data();
@@ -176,6 +245,9 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
 
                     return Card(
                       key: index == 0 ? _keyPrimeraEvaluacion : null,
+                      elevation: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: nota >= 7 ? const Color(0xFF00796B) : Colors.orange,
