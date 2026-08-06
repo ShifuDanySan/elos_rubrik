@@ -65,5 +65,6 @@ flutter:
   # Para añadir assets a tu aplicación, añade una sección de assets, como esta:
   assets:
     - assets/images/
+    - assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf
 
 # Sección de anulación de dependencias eliminada.
