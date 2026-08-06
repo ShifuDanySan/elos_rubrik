@@ -11,7 +11,7 @@ import 'dart:math';
 const Color _primaryColor = Color(0xFF3949AB);
 const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFE1BEE7);
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 // ===============================================
 // WIDGET AUXILIAR: Fondo Estático de Figuras Fijas

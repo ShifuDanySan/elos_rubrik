@@ -7,7 +7,7 @@ import 'detalle_evaluacion_screen.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class ListaEvaluacionesScreen extends StatefulWidget {
   const ListaEvaluacionesScreen({super.key});

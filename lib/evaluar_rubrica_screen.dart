@@ -19,7 +19,7 @@ const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFD1D9E6);
 const Color _buttonSuccessColor = Color(0xFF2E7D32);
 const Color _importSuccessColor = Color(0xFFC8E6C9);
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class DniInputFormatter extends TextInputFormatter {
   static String format(String text) {

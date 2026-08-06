@@ -11,7 +11,7 @@ import 'tutorial_helper.dart';
 
 const String __app_id = 'rubrica_evaluator';
 const Color blueCrear = Colors.blue;
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class ListaRubricasScreen extends StatefulWidget {
   const ListaRubricasScreen({super.key});

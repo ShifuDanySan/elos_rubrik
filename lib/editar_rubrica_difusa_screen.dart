@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class EditarRubricaDifusaScreen extends StatefulWidget {
   final String rubricaId;
@@ -824,12 +824,27 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton.icon(key: _keyBotonFisico, onPressed: () => _mostrarDialogoCriterio(), icon: const Icon(Icons.add, color: Colors.white), label: const Text("AÑADIR CRITERIO DE EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])),
-                ElevatedButton.icon(key: _keyBotonFinalizar, onPressed: _intentarFinalizar, icon: const Icon(Icons.cloud_upload, color: Colors.white), label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800])),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _mostrarDialogoCriterio(),
+                    icon: const Icon(Icons.add_circle, color: Colors.white),
+                    label: const Text("AGREGAR CRITERIO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), padding: const EdgeInsets.symmetric(vertical: 14)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    key: _keyBotonFinalizar,
+                    onPressed: _intentarFinalizar,
+                    icon: const Icon(Icons.save, color: Colors.white),
+                    label: const Text("GUARDAR Y SALIR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: headerColor, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  ),
+                ),
               ],
             ),
           ),

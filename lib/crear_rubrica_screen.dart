@@ -7,7 +7,7 @@ import 'auth_helper.dart';
 import 'editar_rubrica_screen.dart';
 import 'editar_rubrica_difusa_screen.dart';
 
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class CrearRubricaScreen extends StatefulWidget {
   const CrearRubricaScreen({Key? key}) : super(key: key);

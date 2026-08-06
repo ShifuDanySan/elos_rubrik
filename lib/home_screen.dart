@@ -15,7 +15,7 @@ const Color _primaryColor = Color(0xFF5E35B1);
 const Color _accentColor = Color(0xFFF06292);
 const Color _homeBackgroundColor = Color(0xFFEDE7F6);
 const String _imageUrl = 'assets/images/logo-elos.jpg';
-const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
+const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
