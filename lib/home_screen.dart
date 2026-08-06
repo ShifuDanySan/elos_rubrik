@@ -187,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           TutorialHelper.helpButton(context, _lanzarTutorialManual),
           Tooltip(
-            message: 'EDITAR PERFIL',
+            message: 'Editar Perfil',
             child: GestureDetector(
               key: _keyPerfil,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProfileEditScreen())).then((_) => _cargarDatosUsuario()),
