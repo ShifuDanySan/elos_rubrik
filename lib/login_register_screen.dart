@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'home_screen.dart';
 import 'dart:math' as math;
 import 'dart:math';
@@ -10,6 +11,7 @@ import 'dart:math';
 const Color _primaryColor = Color(0xFF3949AB);
 const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFE1BEE7);
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 // ===============================================
 // WIDGET AUXILIAR: Fondo Estático de Figuras Fijas
@@ -179,6 +181,17 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
     _firstFieldFocusNode.dispose();
     _blinkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
   }
 
   void _mostrarInfoPagina() {
@@ -538,7 +551,31 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
+          Center(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              ),
+              onPressed: _abrirManualPdf,
+              icon: const Icon(Icons.menu_book_rounded, size: 20),
+              label: const Text(
+                'MANUAL DE USUARIO',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 15),
           if (_esLogin) ...[
             const Text(
               'INICIA SESIÓN EN ELOS-RUBRIK',

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:excel/excel.dart' as excel_lib;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
@@ -18,6 +19,7 @@ const Color _accentColor = Color(0xFF4FC3F7);
 const Color _backgroundColor = Color(0xFFD1D9E6);
 const Color _buttonSuccessColor = Color(0xFF2E7D32);
 const Color _importSuccessColor = Color(0xFFC8E6C9);
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 class DniInputFormatter extends TextInputFormatter {
   static String format(String text) {
@@ -120,6 +122,17 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) TutorialHelper().reShowLastTutorial(context);
     });
+  }
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
   }
 
   void _iniciarTutorial({bool force = false}) {
@@ -305,6 +318,30 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: _primaryColor,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          ),
+                          onPressed: _abrirManualPdf,
+                          icon: const Icon(Icons.menu_book_rounded, size: 20),
+                          label: const Text(
+                            'MANUAL DE USUARIO',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
                       TutorialHelper.helpButton(context, () => _iniciarTutorial(force: true)),
                       const SizedBox(width: 5),
                       AuthHelper.logoutButton(context),

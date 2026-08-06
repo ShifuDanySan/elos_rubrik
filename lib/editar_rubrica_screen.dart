@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
+
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 class EditarRubricaScreen extends StatefulWidget {
   final String rubricaId;
@@ -46,6 +49,17 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
   }
 
   // Método auxiliar para mostrar alertas de validación bloqueantes
@@ -492,6 +506,12 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   }
 
   void _mostrarDialogoCriterio({Map<String, dynamic>? existente, int? index}) {
+    // Restricción: No se pueden agregar nuevos criterios sin niveles previamente cargados
+    if (existente == null && nivelesGlobales.isEmpty) {
+      _mostrarAviso("Niveles Requeridos", "Debe agregar al menos un Nivel Global de Evaluación antes de agregar Criterios.");
+      return;
+    }
+
     final nombreCtrl = TextEditingController(text: existente?['nombre'] ?? '');
     final pesoCtrl = TextEditingController(text: existente?['peso']?.toString() ?? '');
 
@@ -664,6 +684,30 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () async { if (await _advertirSalida()) Navigator.pop(context); }),
         title: Text(widget.nombreInicial, style: const TextStyle(color: Colors.white, fontSize: 14)),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: headerColor,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              onPressed: _abrirManualPdf,
+              icon: const Icon(Icons.menu_book_rounded, size: 20),
+              label: const Text(
+                'MANUAL DE USUARIO',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
           Tooltip(
             message: "Ver conceptos y ejemplos",
             child: IconButton(
@@ -787,11 +831,23 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ElevatedButton.icon(key: _keyBotonFisico, onPressed: () => _mostrarDialogoCriterio(), icon: const Icon(Icons.add, color: Colors.white), label: const Text("AÑADIR CRITERIO DE EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800])),
-                ElevatedButton.icon(key: _keyBotonFinalizar, onPressed: _intentarFinalizar, icon: const Icon(Icons.cloud_upload, color: Colors.white), label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700])),
+                ElevatedButton.icon(
+                  key: _keyBotonFisico,
+                  onPressed: () => _mostrarDialogoCriterio(),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text("AÑADIR CRITERIO DE EVALUACIÓN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[800]),
+                ),
+                ElevatedButton.icon(
+                  key: _keyBotonFinalizar,
+                  onPressed: _intentarFinalizar,
+                  icon: const Icon(Icons.save, color: Colors.white),
+                  label: const Text("FINALIZAR Y GUARDAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green[700]),
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

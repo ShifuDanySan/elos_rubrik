@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'evaluar_rubrica_screen.dart';
 import 'editar_rubrica_screen.dart';
 import 'editar_rubrica_difusa_screen.dart';
@@ -10,6 +11,7 @@ import 'tutorial_helper.dart';
 
 const String __app_id = 'rubrica_evaluator';
 const Color blueCrear = Colors.blue;
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 class ListaRubricasScreen extends StatefulWidget {
   const ListaRubricasScreen({super.key});
@@ -27,6 +29,17 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   final GlobalKey _keyBuscador = GlobalKey();
   final GlobalKey _keyFiltroFecha = GlobalKey();
   final GlobalKey _keyPrimeraCard = GlobalKey();
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
+  }
 
   String _normalizarTexto(String texto) {
     var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
@@ -154,6 +167,30 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: blueCrear,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              onPressed: _abrirManualPdf,
+              icon: const Icon(Icons.menu_book_rounded, size: 20),
+              label: const Text(
+                'MANUAL DE USUARIO',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
           Container(
             key: _keyFiltroFecha,
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

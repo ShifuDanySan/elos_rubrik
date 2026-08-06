@@ -9,14 +9,16 @@ import 'auth_helper.dart';
 import 'tutorial_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const Color _primaryColor = Color(0xFF5E35B1);
 const Color _accentColor = Color(0xFFF06292);
 const Color _homeBackgroundColor = Color(0xFFEDE7F6);
 const String _imageUrl = 'assets/images/logo-elos.jpg';
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -48,6 +50,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeMetrics() {
     TutorialHelper().forceClose();
+  }
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
   }
 
   void _lanzarTutorialManual() {
@@ -148,28 +161,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: _primaryColor,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              onPressed: _abrirManualPdf,
+              icon: const Icon(Icons.menu_book_rounded, size: 20),
+              label: const Text(
+                'MANUAL DE USUARIO',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
           TutorialHelper.helpButton(context, _lanzarTutorialManual),
-          GestureDetector(
-            key: _keyPerfil,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProfileEditScreen())).then((_) => _cargarDatosUsuario()),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.white24,
-                child: (_photoUrl != null && _photoUrl!.isNotEmpty)
-                    ? ClipOval(
-                  child: Image.network(
-                    _photoUrl!,
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.account_circle, color: Colors.white);
-                    },
-                  ),
-                )
-                    : const Icon(Icons.account_circle, color: Colors.white),
+          Tooltip(
+            message: 'EDITAR PERFIL',
+            child: GestureDetector(
+              key: _keyPerfil,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProfileEditScreen())).then((_) => _cargarDatosUsuario()),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white24,
+                  child: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                      ? ClipOval(
+                    child: Image.network(
+                      _photoUrl!,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(Icons.account_circle, color: Colors.white);
+                      },
+                    ),
+                  )
+                      : const Icon(Icons.account_circle, color: Colors.white),
+                ),
               ),
             ),
           ),
@@ -183,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Container(
               constraints: const BoxConstraints(maxWidth: 800),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
                 child: Column(
                   children: [
                     FittedBox(
@@ -196,23 +236,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             CoinFlipLogo(
                               photoUrl: _photoUrl,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 10),
                             Text(
                               _isLoading ? 'CARGANDO...' : _obtenerSaludoPorHora(),
-                              style: const TextStyle(color: _primaryColor, fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                              style: const TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               _nombreUsuario.toUpperCase(),
-                              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w900, fontSize: 22),
+                              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w900, fontSize: 20),
                               textAlign: TextAlign.center,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 16),
                     Column(
                       key: _keyOpciones,
                       children: [
@@ -233,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildMenuCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 10),
       elevation: 6,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: ListTile(
@@ -313,7 +353,6 @@ class _CoinFlipLogoState extends State<CoinFlipLogo> with SingleTickerProviderSt
                       height: size,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        // Fallback automático si el link de almacenamiento guardado está roto o corrupto
                         return Image.asset(_imageUrl, width: size, height: size, fit: BoxFit.cover);
                       },
                     )

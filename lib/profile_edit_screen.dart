@@ -70,6 +70,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
 
   // SE ELIMINÓ didChangeMetrics PARA EVITAR REINICIOS AL REDIMENSIONAR
 
+  String _formatearDniConPuntos(String dni) {
+    final text = dni.replaceAll('.', '');
+    if (text.isEmpty) return '';
+    final buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      if ((i == 1 || i == 4) && i != text.length - 1) buffer.write('.');
+    }
+    return buffer.toString();
+  }
+
   Future<void> _cargarDatos() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -79,7 +90,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
         setState(() {
           _nombreController.text = data['nombre'] ?? '';
           _apellidoController.text = data['apellido'] ?? '';
-          _dniController.text = data['dni'] ?? '';
+          _dniController.text = _formatearDniConPuntos(data['dni'] ?? '');
           _emailController.text = data['email'] ?? '';
           _photoUrl = data['photoUrl'];
           _isLoading = false;
@@ -122,6 +133,34 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
       await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).update({'photoUrl': downloadUrl});
       setState(() { _photoUrl = downloadUrl; _isSaving = false; });
     } catch (e) { setState(() => _isSaving = false); }
+  }
+
+  void _mostrarAvisoCamposBloqueados() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Text("Aviso"),
+            ],
+          ),
+          content: const Text(
+            "Solo puede modificar el nombre, apellido y contraseña.",
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Aceptar", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _onSave() async {
@@ -193,13 +232,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
                         children: [
                           _buildField(_nombreController, "Nombre", Icons.person_outline, _nombreFocus, _apellidoFocus),
                           _buildField(_apellidoController, "Apellido", Icons.person_outline, _apellidoFocus, _passFocus),
-                          Container(
-                            key: _keyCamposFijos,
-                            child: Column(
-                              children: [
-                                _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
-                                _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
-                              ],
+                          GestureDetector(
+                            onTap: _mostrarAvisoCamposBloqueados,
+                            behavior: HitTestBehavior.opaque,
+                            child: AbsorbPointer(
+                              child: Container(
+                                key: _keyCamposFijos,
+                                child: Column(
+                                  children: [
+                                    _buildField(_dniController, "DNI", Icons.badge_outlined, null, null, enabled: false),
+                                    _buildField(_emailController, "Email", Icons.email_outlined, null, null, enabled: false),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                           const Divider(height: 25, thickness: 1),

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
+
+const String _pdfUrl = 'assets/docs/Manual_de_Usuario_de_Elos-rubrik.pdf';
 
 class EditarRubricaDifusaScreen extends StatefulWidget {
   final String rubricaId;
@@ -49,6 +52,17 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _abrirManualPdf() async {
+    final Uri uri = Uri.parse(_pdfUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el manual de usuario.')),
+        );
+      }
+    }
   }
 
   void _mostrarAviso(String titulo, String mensaje) {
@@ -669,6 +683,30 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () async { if (await _advertirSalida()) Navigator.pop(context); }),
         title: Text(widget.nombreInicial, style: const TextStyle(color: Colors.white, fontSize: 14)),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: headerColor,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              onPressed: _abrirManualPdf,
+              icon: const Icon(Icons.menu_book_rounded, size: 20),
+              label: const Text(
+                'MANUAL DE USUARIO',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
           Tooltip(
             message: "Ver conceptos y ejemplos",
             child: IconButton(
