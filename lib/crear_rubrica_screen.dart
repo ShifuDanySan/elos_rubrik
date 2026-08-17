@@ -131,17 +131,17 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
       if (user != null) {
         List<Map<String, dynamic>> plantillaInicial = [];
 
-        // Si es Rúbrica Difusa (_tipoRubrica == 2), se crea una estructura por defecto con 1 nivel de 10 puntos
+        // Si es Rúbrica Difusa (_tipoRubrica == 2), se crea con porcentaje 0.0 y texto vacío para que el docente lo cargue manualmente
         if (_tipoRubrica == 2) {
           plantillaInicial = [
             {
               'nombre': 'Criterio 1',
-              'porcentaje': 100.0,
+              'porcentaje': 0.0,
               'descriptores': [
                 {
                   'contexto': 'Nivel 1',
                   'puntos': 10.0,
-                  'texto': 'Descripción del nivel',
+                  'texto': '',
                   'analiticos': [],
                 }
               ]

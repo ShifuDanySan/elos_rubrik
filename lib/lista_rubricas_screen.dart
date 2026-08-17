@@ -24,7 +24,6 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   DateTime? _fechaFiltro;
   String _filtroNombre = "";
   int? _tipoRubricaFiltro; // null: sin selección, 1: Tradicional, 2: Difusa
-  bool _tutorialPresentado = false;
 
   final GlobalKey _keyBuscador = GlobalKey();
   final GlobalKey _keyFiltroFecha = GlobalKey();
@@ -42,8 +41,8 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   }
 
   String _normalizarTexto(String texto) {
-    var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛäëïöüÄËÏÖÜñÑ';
-    var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUaeiouAEIOUnN';
+    var conAcentos = 'ÁÉÍÓÚáéíóúàèìòùÀÈÌÒÙâêîôûÄËÏÖÜñÑ';
+    var sinAcentos = 'AEIOUaeiouaeiouAEIOUaeiouAEIOUnN';
     String salida = texto;
     for (int i = 0; i < conAcentos.length; i++) {
       salida = salida.replaceAll(conAcentos[i], sinAcentos[i]);
@@ -64,10 +63,261 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
     );
   }
 
+  int _determinarTipoRubrica(Map<String, dynamic> data) {
+    dynamic tipoRaw = data['tipoRubrica'];
+    if (tipoRaw != null) {
+      if (tipoRaw is int) return tipoRaw;
+      if (tipoRaw is num) return tipoRaw.toInt();
+      if (tipoRaw is String) {
+        int? parsed = int.tryParse(tipoRaw);
+        if (parsed != null) return parsed;
+      }
+    }
+
+    final criterios = (data['criterios'] as List?) ?? [];
+    for (var c in criterios) {
+      if (c is Map && c['descriptores'] is List) {
+        for (var desc in (c['descriptores'] as List)) {
+          if (desc is Map && (desc['analiticos'] != null || desc['puntos'] != null)) {
+            return 2;
+          }
+        }
+      }
+    }
+
+    return 1;
+  }
+
+  double _obtenerPeso(dynamic item) {
+    if (item is Map) {
+      final val = item['porcentaje'] ?? item['peso'] ?? item['porcentajePeso'];
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  List<String> _validarRubrica(Map<String, dynamic> data) {
+    List<String> errores = [];
+    final listCriterios = (data['criterios'] as List?) ?? [];
+
+    // 1. Validar Criterios y Porcentajes
+    if (listCriterios.isEmpty) {
+      errores.add("Debe existir al menos un criterio de evaluación.");
+    } else {
+      double sumaPesos = 0;
+      bool tienePesoCeroOInvalido = false;
+
+      for (var c in listCriterios) {
+        double peso = _obtenerPeso(c);
+        if (peso <= 0) {
+          tienePesoCeroOInvalido = true;
+        }
+        sumaPesos += peso;
+      }
+
+      if (tienePesoCeroOInvalido) {
+        errores.add("Cada criterio debe tener un porcentaje asignado estrictamente mayor a 0%.");
+      }
+
+      if (sumaPesos < 99.0 || sumaPesos > 100.1) {
+        errores.add("La suma total de los porcentajes debe dar exactamente 100% (Suma actual: ${sumaPesos.toStringAsFixed(1)}%).");
+      }
+    }
+
+    // 2. Validar Niveles Globales / Contextos
+    Set<String> nombresNiveles = {};
+    List listNiveles = (data['niveles'] ?? data['nivelesGlobales'] as List?) ?? [];
+
+    if (listNiveles.isNotEmpty) {
+      for (var n in listNiveles) {
+        String nombre = "";
+        if (n is Map) {
+          nombre = (n['contexto'] ?? n['nombre'] ?? n['titulo'] ?? n['etiqueta'] ?? '').toString();
+        } else {
+          nombre = n.toString();
+        }
+        if (nombre.trim().isNotEmpty) {
+          nombresNiveles.add(nombre.trim());
+        }
+      }
+    } else if (listCriterios.isNotEmpty) {
+      for (var c in listCriterios) {
+        if (c is Map && c['descriptores'] is List) {
+          for (var desc in (c['descriptores'] as List)) {
+            if (desc is Map) {
+              final analiticos = desc['analiticos'] as List?;
+              if (analiticos != null && analiticos.isNotEmpty) {
+                for (var a in analiticos) {
+                  if (a is Map) {
+                    String ctx = (a['contexto'] ?? a['nombre'] ?? '').toString().trim();
+                    if (ctx.isNotEmpty) nombresNiveles.add(ctx);
+                  }
+                }
+              } else {
+                String ctx = (desc['contexto'] ?? desc['nombre'] ?? '').toString().trim();
+                if (ctx.isNotEmpty) nombresNiveles.add(ctx);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (nombresNiveles.isEmpty) {
+      errores.add("Debe haber al menos un nivel global de evaluación definido.");
+    }
+
+    // 3. Validar Descriptores por Criterio
+    if (listCriterios.isNotEmpty) {
+      bool descriptoresIncompletos = false;
+      bool contieneTextoPlantilla = false;
+
+      for (var c in listCriterios) {
+        if (c is Map) {
+          final descs = c['descriptores'];
+          if (descs == null || (descs is List && descs.isEmpty)) {
+            descriptoresIncompletos = true;
+            break;
+          }
+
+          int cantidadTextosValidos = 0;
+
+          if (descs is List) {
+            for (var item in descs) {
+              if (item is Map) {
+                final analiticos = item['analiticos'] as List?;
+                if (analiticos != null && analiticos.isNotEmpty) {
+                  for (var a in analiticos) {
+                    if (a is Map) {
+                      String txt = (a['texto'] ?? a['descriptor'] ?? a['descripcion'] ?? '').toString().trim();
+                      if (txt.toLowerCase() == 'descripción del nivel' || txt.toLowerCase() == 'descripcion del nivel') {
+                        contieneTextoPlantilla = true;
+                      } else if (txt.isNotEmpty) {
+                        cantidadTextosValidos++;
+                      }
+                    }
+                  }
+                } else {
+                  String txt = (item['texto'] ?? item['descriptor'] ?? item['descripcion'] ?? '').toString().trim();
+                  if (txt.toLowerCase() == 'descripción del nivel' || txt.toLowerCase() == 'descripcion del nivel') {
+                    contieneTextoPlantilla = true;
+                  } else if (txt.isNotEmpty) {
+                    cantidadTextosValidos++;
+                  }
+                }
+              } else {
+                String txt = item.toString().trim();
+                if (txt.toLowerCase() == 'descripción del nivel' || txt.toLowerCase() == 'descripcion del nivel') {
+                  contieneTextoPlantilla = true;
+                } else if (txt.isNotEmpty) {
+                  cantidadTextosValidos++;
+                }
+              }
+            }
+          } else if (descs is Map) {
+            for (var val in descs.values) {
+              String txt = "";
+              if (val is Map) {
+                txt = (val['texto'] ?? val['descriptor'] ?? val['descripcion'] ?? '').toString().trim();
+              } else {
+                txt = val.toString().trim();
+              }
+              if (txt.toLowerCase() == 'descripción del nivel' || txt.toLowerCase() == 'descripcion del nivel') {
+                contieneTextoPlantilla = true;
+              } else if (txt.isNotEmpty) {
+                cantidadTextosValidos++;
+              }
+            }
+          } else {
+            descriptoresIncompletos = true;
+            break;
+          }
+
+          int minRequerido = nombresNiveles.isNotEmpty ? nombresNiveles.length : 1;
+          if (cantidadTextosValidos < minRequerido) {
+            descriptoresIncompletos = true;
+            break;
+          }
+        } else {
+          descriptoresIncompletos = true;
+          break;
+        }
+      }
+
+      if (contieneTextoPlantilla) {
+        errores.add("Debes personalizar las descripciones iniciales ('Descripción del nivel') de la plantilla.");
+      } else if (descriptoresIncompletos) {
+        errores.add("Cada criterio debe tener asociados descriptores completos y no vacíos para todos los niveles globales.");
+      }
+    }
+
+    return errores;
+  }
+
+  void _mostrarDialogoCondicionesFaltantes(List<String> errores) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Condiciones Incompletas",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "La rúbrica seleccionada no cumple con las siguientes condiciones para ser evaluada:",
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              ...errores.map(
+                    (err) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("• ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Expanded(
+                        child: Text(err, style: const TextStyle(fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "ACEPTAR",
+              style: TextStyle(fontWeight: FontWeight.bold, color: blueCrear),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _mostrarOpcionesCentrales(Map<String, dynamic> data, String docId) {
     final GlobalKey keyEvaluar = GlobalKey();
     final GlobalKey keyEditar = GlobalKey();
     final GlobalKey keyEliminar = GlobalKey();
+
+    int tipoReal = _determinarTipoRubrica(data);
 
     showDialog(
       context: context,
@@ -86,7 +336,21 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 title: const Text("Evaluar"),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => EvaluarRubricaScreen(rubricaId: docId, nombreRubrica: data['nombre'] ?? 'Sin nombre')));
+                  final errores = _validarRubrica(data);
+
+                  if (errores.isNotEmpty) {
+                    _mostrarDialogoCondicionesFaltantes(errores);
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EvaluarRubricaScreen(
+                          rubricaId: docId,
+                          nombreRubrica: data['nombre'] ?? 'Sin nombre',
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
               ListTile(
@@ -95,8 +359,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 title: const Text("Editar"),
                 onTap: () {
                   Navigator.pop(context);
-                  final int tipo = data['tipoRubrica'] ?? 1;
-                  if (tipo == 2) {
+                  if (tipoReal == 2) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -278,8 +541,8 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 var docs = snapshot.data!.docs;
 
                 docs = docs.where((d) {
-                  final tipo = d.data()['tipoRubrica'] ?? 1;
-                  return tipo == _tipoRubricaFiltro;
+                  int tipoDoc = _determinarTipoRubrica(d.data());
+                  return tipoDoc == _tipoRubricaFiltro;
                 }).toList();
 
                 if (_filtroNombre.isNotEmpty) {
