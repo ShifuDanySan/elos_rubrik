@@ -116,7 +116,7 @@ class TutorialHelper {
               key: keys['tipo_rubrica']!,
               paso: "2",
               titulo: "Tipo de Rúbrica",
-              mensaje: "Selecciona el modelo de evaluación: 'Tradicional' para escalas estándar de puntos, o 'Difusa' para una evaluación basada en lógica difusa y porcentajes.",
+              mensaje: "Selecciona el modelo de evaluación: 'Tradicional' para asignar puntajes fijos según el nivel de logro, o 'Difusa' para medir de forma flexible el grado de adquisición de competencias.",
               esCirculo: false,
             ),
           if (keys.containsKey('btn_guardar'))
