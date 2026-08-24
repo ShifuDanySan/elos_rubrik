@@ -24,6 +24,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
 
   final GlobalKey _keyBuscadorEstudiante = GlobalKey();
   final GlobalKey _keyFiltroCalendario = GlobalKey();
+  final GlobalKey _keyTipoRubrica = GlobalKey();
   final GlobalKey _keyPrimeraEvaluacion = GlobalKey();
 
   @override
@@ -48,6 +49,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
       pageId: 'LISTA_EVALUACIONES',
       keys: {
         'buscador_estudiante': _keyBuscadorEstudiante,
+        'tipo_rubrica': _keyTipoRubrica,
         'filtro_calendario': _keyFiltroCalendario,
         'primera_evaluacion': _keyPrimeraEvaluacion,
       },
@@ -180,6 +182,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
+                  key: _keyTipoRubrica,
                   value: _tipoRubricaFiltro,
                   hint: const Text(
                     "SELECCIONE EL TIPO DE RÚBRICA",

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'auth_helper.dart';
 import 'editar_rubrica_screen.dart';
 import 'editar_rubrica_difusa_screen.dart';
+import 'tutorial_helper.dart';
 
 const String _pdfUrl = 'https://drive.google.com/file/d/1YqbBuRZw82F3D2Jh0DhdNtyNed3aGQiz/view?usp=sharing';
 
@@ -20,22 +20,31 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
   final TextEditingController _nombreController = TextEditingController();
   final String __app_id = 'rubrica_evaluator';
   bool _cargando = false;
-  int? _tipoRubrica; // null al inicio para que aparezca vacío
+  int? _tipoRubrica;
 
   final Color primaryColor = Colors.blue;
   final Color actionButtonColor = const Color(0xFF2E7D32);
-  final Color _accentColor = const Color(0xFFF06292);
 
-  final GlobalKey _keyIconoNombre = GlobalKey();
+  final GlobalKey _keyNombreRubrica = GlobalKey();
+  final GlobalKey _keyTipoRubrica = GlobalKey();
   final GlobalKey _keyBotonCrear = GlobalKey();
-
-  late TutorialCoachMark tutorialCoachMark;
-  List<TargetFocus> targets = [];
 
   @override
   void initState() {
     super.initState();
-    _initTutorial();
+  }
+
+  void _lanzarTutorial({bool force = true}) {
+    TutorialHelper().showTutorial(
+      context: context,
+      pageId: 'CREAR_RUBRICA',
+      keys: {
+        'nombre_rubrica': _keyNombreRubrica,
+        'tipo_rubrica': _keyTipoRubrica,
+        'btn_guardar': _keyBotonCrear,
+      },
+      force: force,
+    );
   }
 
   Future<void> _abrirManualPdf() async {
@@ -47,71 +56,6 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
         );
       }
     }
-  }
-
-  void _initTutorial() {
-    targets.clear();
-    targets.add(
-      TargetFocus(
-        identify: "IconoNombreTarget",
-        keyTarget: _keyIconoNombre,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            child: _buildTutorialStep("1", "Nombre de la Rúbrica", "Asigna un nombre claro (ej. 'Exposición Oral') para identificarla luego."),
-          ),
-        ],
-      ),
-    );
-    targets.add(
-      TargetFocus(
-        identify: "BotonCrearTarget",
-        keyTarget: _keyBotonCrear,
-        shape: ShapeLightFocus.RRect,
-        radius: 15,
-        contents: [
-          TargetContent(
-            align: ContentAlign.top,
-            child: _buildTutorialStep("2", "Confirmar", "Presiona aquí para guardar el nombre y comenzar a configurar los criterios."),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTutorialStep(String step, String title, String text) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: _accentColor, width: 2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(backgroundColor: _accentColor, radius: 12, child: Text(step, style: const TextStyle(color: Colors.white, fontSize: 12))),
-              const SizedBox(width: 10),
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 15)),
-        ],
-      ),
-    );
-  }
-
-  void _showTutorial() {
-    tutorialCoachMark = TutorialCoachMark(
-      targets: targets,
-      colorShadow: Colors.black,
-      opacityShadow: 0.8,
-      textSkip: "SALTAR",
-    )..show(context: context);
   }
 
   Future<void> _guardarYContinuar() async {
@@ -131,7 +75,6 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
       if (user != null) {
         List<Map<String, dynamic>> plantillaInicial = [];
 
-        // Si es Rúbrica Difusa (_tipoRubrica == 2), se crea con porcentaje 0.0 y texto vacío para que el docente lo cargue manualmente
         if (_tipoRubrica == 2) {
           plantillaInicial = [
             {
@@ -226,7 +169,7 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
-            onPressed: _showTutorial,
+            onPressed: () => _lanzarTutorial(force: true),
             tooltip: 'Ver tutorial',
           ),
           AuthHelper.logoutButton(context),
@@ -243,10 +186,11 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                   const Align(alignment: Alignment.centerLeft, child: Text('Título de la Rúbrica', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey))),
                   const SizedBox(height: 15),
                   TextFormField(
+                    key: _keyNombreRubrica,
                     controller: _nombreController,
                     autofocus: true,
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.description, key: _keyIconoNombre, color: primaryColor),
+                      prefixIcon: Icon(Icons.description, color: primaryColor),
                       hintText: 'Ej: Evaluación de Proyecto Final',
                       filled: true,
                       fillColor: Colors.white,
@@ -257,6 +201,7 @@ class _CrearRubricaScreenState extends State<CrearRubricaScreen> {
                   const Align(alignment: Alignment.centerLeft, child: Text('SELECCIONE EL TIPO DE RÚBRICA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey))),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<int>(
+                    key: _keyTipoRubrica,
                     value: _tipoRubrica,
                     hint: const Text('SELECCIONE EL TIPO DE RÚBRICA'),
                     decoration: InputDecoration(

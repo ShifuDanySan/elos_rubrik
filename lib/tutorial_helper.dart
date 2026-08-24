@@ -67,157 +67,399 @@ class TutorialHelper {
       case 'HOME':
         targets = [
           if (keys.containsKey('banner'))
-            _crearTarget(id: "h_ban", key: keys['banner']!, paso: "1", titulo: "Bienvenido", mensaje: "Aquí verás tu saludo personalizado y acceso rápido a tu perfil personal.", esCirculo: true),
+            _crearTarget(
+              id: "h_ban",
+              key: keys['banner']!,
+              paso: "1",
+              titulo: "Bienvenido",
+              mensaje: "Aquí verás tu saludo personalizado, el logo de ELOS y la foto/imagen de perfil que cargues.",
+              esCirculo: true,
+            ),
           if (keys.containsKey('opciones'))
-            _crearTarget(id: "h_opc", key: keys['opciones']!, paso: "2", titulo: "Menú Principal", mensaje: "Desde aquí puedes crear nuevas rúbricas, realizar evaluaciones o revisar el historial de actividades.", esCirculo: false, alineacion: ContentAlign.top),
+            _crearTarget(
+              id: "h_opc",
+              key: keys['opciones']!,
+              paso: "2",
+              titulo: "Menú Principal",
+              mensaje: "Desde aquí puedes crear nuevas rúbricas, evaluarlas o consultar el historial de calificaciones.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
           if (keys.containsKey('perfil'))
-            _crearTarget(id: "h_perf", key: keys['perfil']!, paso: "3", titulo: "Tu Perfil", mensaje: "Gestiona tus datos de usuario, cambia tu fotografía o cierra la sesión desde aquí.", esCirculo: true),
+            _crearTarget(
+              id: "h_perf",
+              key: keys['perfil']!,
+              paso: "3",
+              titulo: "Tu Perfil",
+              mensaje: "Gestiona tu información personal y/o actualiza tu foto/imagen de perfil.",
+              esCirculo: true,
+            ),
         ];
         break;
 
       case 'CREAR_RUBRICA':
         targets = [
           if (keys.containsKey('nombre_rubrica'))
-            _crearTarget(id: "cr_nom", key: keys['nombre_rubrica']!, paso: "1", titulo: "Título", mensaje: "Asigna un nombre descriptivo para identificar y localizar tu rúbrica fácilmente.", esCirculo: false),
-          if (keys.containsKey('add_criterio'))
-            _crearTarget(id: "cr_add", key: keys['add_criterio']!, paso: "2", titulo: "Criterios", mensaje: "Agrega las categorías generales. Luego configurarás los detalles técnicos de cada una.", esCirculo: true),
+            _crearTarget(
+              id: "cr_nom",
+              key: keys['nombre_rubrica']!,
+              paso: "1",
+              titulo: "Título de la Rúbrica",
+              mensaje: "Asigna un nombre descriptivo para identificar tu rúbrica en la biblioteca.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('tipo_rubrica'))
+            _crearTarget(
+              id: "cr_tipo",
+              key: keys['tipo_rubrica']!,
+              paso: "2",
+              titulo: "Tipo de Rúbrica",
+              mensaje: "Selecciona el modelo de evaluación: 'Tradicional' para escalas estándar de puntos, o 'Difusa' para una evaluación basada en lógica difusa y porcentajes.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('btn_guardar'))
-            _crearTarget(id: "cr_save", key: keys['btn_guardar']!, paso: "3", titulo: "Finalizar", mensaje: "Guarda la estructura inicial para habilitar la edición avanzada de descriptores y analíticos.", esCirculo: false),
+            _crearTarget(
+              id: "cr_save",
+              key: keys['btn_guardar']!,
+              paso: "3",
+              titulo: "Guardar y Continuar",
+              mensaje: "Presiona para crear la estructura e ir a la configuración detallada de los criterios.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
         ];
         break;
 
       case 'EDITAR_RUBRICA_SCREEN':
+      case 'EDITAR_RUBRICA_DIFUSA':
         targets = [
-          if (keys.containsKey('nombre_rubrica'))
-            _crearTarget(id: "ed_nom", key: keys['nombre_rubrica']!, paso: "1", titulo: "Nombre Principal", mensaje: "Modifica el título global de la rúbrica si necesitas una versión diferente.", esCirculo: false),
-          if (keys.containsKey('icon_lapiz'))
-            _crearTarget(id: "ed_lap", key: keys['icon_lapiz']!, paso: "2", titulo: "Editar Criterio", mensaje: "Toca el LÁPIZ para definir el nombre del aspecto y qué porcentaje de la nota final representa.", esCirculo: true),
-          if (keys.containsKey('icon_lista'))
-            _crearTarget(id: "ed_lis", key: keys['icon_lista']!, paso: "3", titulo: "Detalles Técnicos", mensaje: "Toca la LISTA para editar niveles de logro, indicadores analíticos, sus pesos y operadores lógicos.", esCirculo: true),
-          if (keys.containsKey('btn_add_criterio'))
-            _crearTarget(id: "ed_add", key: keys['btn_add_criterio']!, paso: "4", titulo: "Nuevo Elemento", mensaje: "Añade un criterio adicional a la estructura de evaluación actual.", esCirculo: true),
+          if (keys.containsKey('barra_estado') || keys.containsKey('nombre_rubrica'))
+            _crearTarget(
+              id: "ed_bar",
+              key: (keys['barra_estado'] ?? keys['nombre_rubrica'])!,
+              paso: "1",
+              titulo: "Barra de Estado y Validación",
+              mensaje: "Indica en verde cuando los porcentajes de los criterios suman 100% y cuando todos los descriptores tienen su texto completado.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('niveles_globales'))
+            _crearTarget(
+              id: "ed_niv",
+              key: keys['niveles_globales']!,
+              paso: "2",
+              titulo: "Niveles Globales de Evaluación",
+              mensaje: "Define los niveles de logro (ej. Excelente, Bueno) y el puntaje asignado que se aplicarán automáticamente a todos los criterios.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('lista_criterios'))
+            _crearTarget(
+              id: "ed_crit",
+              key: keys['lista_criterios']!,
+              paso: "3",
+              titulo: "Criterios de Evaluación",
+              mensaje: "Aquí se listan los criterios. Puedes editar su nombre y asignar el porcentaje correspondiente a cada competencia.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('edit_descriptor'))
+            _crearTarget(
+              id: "ed_desc",
+              key: keys['edit_descriptor']!,
+              paso: "4",
+              titulo: "Texto del Descriptor (Obligatorio)",
+              mensaje: "Es necesario presionar el icono de lápiz para redactar el texto explicativo de cada nivel de logro. No podrás guardar hasta completar todos los descriptores.",
+              esCirculo: true,
+              alineacion: ContentAlign.top,
+            ),
           if (keys.containsKey('btn_actualizar'))
-            _crearTarget(id: "ed_upd", key: keys['btn_actualizar']!, paso: "5", titulo: "Sincronizar", mensaje: "Presiona para procesar los cálculos técnicos y guardar todos los cambios en el servidor.", esCirculo: false),
+            _crearTarget(
+              id: "ed_upd",
+              key: keys['btn_actualizar']!,
+              paso: "5",
+              titulo: "Guardar Rúbrica",
+              mensaje: "Al presionar este botón se validarán los porcentajes y descriptores completos antes de almacenar los datos en la nube.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
         ];
         break;
 
       case 'EDITAR_DESCRIPTOR':
         targets = [
           if (keys.containsKey('contexto'))
-            _crearTarget(id: "ed_desc_cont", key: keys['contexto']!, paso: "1", titulo: "Descripción", mensaje: "Define el contexto o nombre del descriptor de nivel.", esCirculo: false),
-          if (keys.containsKey('peso_desc'))
-            _crearTarget(id: "ed_desc_peso", key: keys['peso_desc']!, paso: "2", titulo: "Peso del Nivel", mensaje: "Desliza para asignar el peso específico que este descriptor aporta al criterio.", esCirculo: false),
+            _crearTarget(
+              id: "desc_ctx",
+              key: keys['contexto']!,
+              paso: "1",
+              titulo: "Redacción del Descriptor",
+              mensaje: "Ingresa la explicación detallada sobre qué evidencia o desempeño debe mostrar el estudiante para alcanzar este nivel.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('boton_aceptar'))
-            _crearTarget(id: "ed_desc_ok", key: keys['boton_aceptar']!, paso: "3", titulo: "Guardar", mensaje: "Presiona para aplicar los cambios del descriptor.", esCirculo: false),
-        ];
-        break;
-
-      case 'EDITOR_NOMBRE_PESO_CRITERIO':
-        targets = [
-          if (keys.containsKey('input_nombre_criterio'))
-            _crearTarget(id: "enc_nom", key: keys['input_nombre_criterio']!, paso: "1", titulo: "Identificación", mensaje: "Escribe el nombre del área de evaluación (ej: Puntualidad, Coherencia, Uso de recursos).", esCirculo: false),
-          if (keys.containsKey('slider_peso_criterio'))
-            _crearTarget(id: "enc_peso", key: keys['slider_peso_criterio']!, paso: "2", titulo: "Peso Porcentual", mensaje: "Define qué porcentaje del total de la calificación (0-100%) aporta este criterio específico.", esCirculo: false),
-          if (keys.containsKey('btn_aceptar_nombre_peso'))
-            _crearTarget(id: "enc_ok", key: keys['btn_aceptar_nombre_peso']!, paso: "3", titulo: "Confirmar", mensaje: "Guarda estos cambios básicos para continuar con la configuración detallada.", esCirculo: false),
-        ];
-        break;
-
-      case 'EDITOR_DETALLE_CRITERIO':
-        targets = [
-          if (keys.containsKey('input_descriptor'))
-            _crearTarget(id: "det_desc", key: keys['input_descriptor']!, paso: "1", titulo: "Descriptor de Nivel", mensaje: "Define el nombre del nivel de logro (ej: Excelente, Muy Bueno, Regular, Insuficiente).", esCirculo: false),
-          if (keys.containsKey('slider_peso_nivel'))
-            _crearTarget(id: "det_p_niv", key: keys['slider_peso_nivel']!, paso: "2", titulo: "Peso del Nivel", mensaje: "Establece el puntaje máximo que se puede alcanzar en este nivel de logro específico.", esCirculo: false),
-          if (keys.containsKey('input_analitico'))
-            _crearTarget(id: "det_ana", key: keys['input_analitico']!, paso: "3", titulo: "Indicador Analítico", mensaje: "Describe la conducta o evidencia observable que el estudiante debe demostrar.", esCirculo: false),
-          if (keys.containsKey('slider_peso_analitico'))
-            _crearTarget(id: "det_p_ana", key: keys['slider_peso_analitico']!, paso: "4", titulo: "Peso del Analítico", mensaje: "Define el valor o importancia de este indicador dentro del puntaje de este nivel.", esCirculo: false),
-          if (keys.containsKey('selector_operador'))
-            _crearTarget(id: "det_op", key: keys['selector_operador']!, paso: "5", titulo: "Lógica de Cálculo", mensaje: "Elige cómo se relacionan los indicadores: 'Y' (todos), 'O' (al menos uno) o 'Ninguno'.", esCirculo: false),
-          if (keys.containsKey('btn_aceptar_detalle'))
-            _crearTarget(id: "det_ok", key: keys['btn_aceptar_detalle']!, paso: "6", titulo: "Finalizar Detalle", mensaje: "Guarda la configuración técnica del descriptor y los parámetros de cálculo asociados.", esCirculo: false),
+            _crearTarget(
+              id: "desc_btn",
+              key: keys['boton_aceptar']!,
+              paso: "2",
+              titulo: "Confirmar Descriptor",
+              mensaje: "Guarda el texto ingresado para actualizar el indicador de la rúbrica.",
+              esCirculo: false,
+            ),
         ];
         break;
 
       case 'LISTA_RUBRICAS':
         targets = [
           if (keys.containsKey('buscador'))
-            _crearTarget(id: "lr_busc", key: keys['buscador']!, paso: "1", titulo: "Filtrar", mensaje: "Busca rúbricas por su nombre para encontrarlas rápidamente en tu biblioteca.", esCirculo: false),
+            _crearTarget(
+              id: "lr_busc",
+              key: keys['buscador']!,
+              paso: "1",
+              titulo: "Buscador de Rúbricas",
+              mensaje: "Encuentra rúbricas rápidamente ingresando palabras clave de su título.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('tipo_rubrica'))
+            _crearTarget(
+              id: "lr_tipo",
+              key: keys['tipo_rubrica']!,
+              paso: "2",
+              titulo: "Tipo de Rúbrica",
+              mensaje: "Selecciona si deseas visualizar Rúbricas Tradicionales o Rúbricas Difusas para cargar la lista.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('filtro_fecha'))
-            _crearTarget(id: "lr_fecha", key: keys['filtro_fecha']!, paso: "2", titulo: "Cronología", mensaje: "Ordena o busca tus diseños según el momento en que fueron creados.", esCirculo: false),
+            _crearTarget(
+              id: "lr_fecha",
+              key: keys['filtro_fecha']!,
+              paso: "3",
+              titulo: "Orden y Filtros",
+              mensaje: "Organiza la lista de rúbricas por fecha de creación o modificación.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('primera_card'))
-            _crearTarget(id: "lr_card", key: keys['primera_card']!, paso: "3", titulo: "Opciones de Item", mensaje: "Accede a las funciones para evaluar, editar o eliminar el diseño seleccionado.", esCirculo: false),
-        ];
-        break;
-
-      case 'OPCIONES_RUBRICA':
-        targets = [
-          if (keys.containsKey('opcion_evaluar'))
-            _crearTarget(id: "or_eval", key: keys['opcion_evaluar']!, paso: "1", titulo: "Ir a Evaluar", mensaje: "Inicia una nueva sesión de calificación con esta rúbrica específica.", esCirculo: false),
-          if (keys.containsKey('opcion_editar'))
-            _crearTarget(id: "or_edit", key: keys['opcion_editar']!, paso: "2", titulo: "Modificar", mensaje: "Entra al editor completo para cambiar nombres, pesos o analíticos.", esCirculo: false),
-          if (keys.containsKey('opcion_eliminar'))
-            _crearTarget(id: "or_elim", key: keys['opcion_eliminar']!, paso: "3", titulo: "Borrar", mensaje: "Elimina la rúbrica definitivamente. Ten en cuenta que esta acción es irreversible.", esCirculo: false),
+            _crearTarget(
+              id: "lr_card",
+              key: keys['primera_card']!,
+              paso: "4",
+              titulo: "Gestión de la Rúbrica",
+              mensaje: "Selecciona una tarjeta para iniciar una evaluación, editar su contenido o eliminarla.",
+              esCirculo: false,
+            ),
         ];
         break;
 
       case 'LISTA_EVALUACIONES':
         targets = [
           if (keys.containsKey('buscador_estudiante'))
-            _crearTarget(id: "le_busc", key: keys['buscador_estudiante']!, paso: "1", titulo: "Estudiante", mensaje: "Busca las calificaciones realizadas filtrando por el nombre del alumno.", esCirculo: false),
+            _crearTarget(
+              id: "le_busc",
+              key: keys['buscador_estudiante']!,
+              paso: "1",
+              titulo: "Buscar Estudiante",
+              mensaje: "Filtra la lista de evaluaciones históricas escribiendo el nombre o apellido del alumno.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('tipo_rubrica'))
+            _crearTarget(
+              id: "le_tipo",
+              key: keys['tipo_rubrica']!,
+              paso: "2",
+              titulo: "Tipo de Rúbrica",
+              mensaje: "Selecciona si deseas visualizar evaluaciones de Rúbrica Tradicional o Rúbrica Difusa.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('filtro_calendario'))
-            _crearTarget(id: "le_cal", key: keys['filtro_calendario']!, paso: "2", titulo: "Fecha", mensaje: "Encuentra evaluaciones realizadas en un día o periodo específico.", esCirculo: true),
+            _crearTarget(
+              id: "le_cal",
+              key: keys['filtro_calendario']!,
+              paso: "3",
+              titulo: "Filtrar por Fecha",
+              mensaje: "Consulta las calificaciones registradas en una fecha o período específico.",
+              esCirculo: true,
+            ),
           if (keys.containsKey('primera_evaluacion'))
-            _crearTarget(id: "le_card", key: keys['primera_evaluacion']!, paso: "3", titulo: "Resultados", mensaje: "Accede para ver el detalle desglosado o generar el informe oficial en PDF.", esCirculo: false),
+            _crearTarget(
+              id: "le_card",
+              key: keys['primera_evaluacion']!,
+              paso: "4",
+              titulo: "Ver Resultados",
+              mensaje: "Accede al detalle completo de la calificación o genera el reporte en formato PDF.",
+              esCirculo: false,
+            ),
         ];
         break;
 
       case 'DETALLE_EVALUACION':
         targets = [
           if (keys.containsKey('puntaje_total'))
-            _crearTarget(id: "de_score", key: keys['puntaje_total']!, paso: "1", titulo: "Nota Final", mensaje: "Muestra la calificación total calculada tras procesar todos los criterios.", esCirculo: false),
+            _crearTarget(
+              id: "de_score",
+              key: keys['puntaje_total']!,
+              paso: "1",
+              titulo: "Calificación Final",
+              mensaje: "Muestra la nota total calculada según los niveles seleccionados en cada criterio.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('tabla_resumen'))
-            _crearTarget(id: "de_table", key: keys['tabla_resumen']!, paso: "2", titulo: "Resumen", mensaje: "Visualiza la distribución de puntajes obtenidos en cada categoría evaluada.", esCirculo: false),
+            _crearTarget(
+              id: "de_table",
+              key: keys['tabla_resumen']!,
+              paso: "2",
+              titulo: "Desglose por Criterio",
+              mensaje: "Revisa la puntuación y el nivel alcanzado en cada categoría evaluada.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('btn_pdf'))
-            _crearTarget(id: "de_pdf", key: keys['btn_pdf']!, paso: "3", titulo: "PDF", mensaje: "Exporta un reporte profesional con los resultados para entregar al estudiante.", esCirculo: true),
+            _crearTarget(
+              id: "de_pdf",
+              key: keys['btn_pdf']!,
+              paso: "3",
+              titulo: "Exportar PDF",
+              mensaje: "Genera un documento PDF oficial con el informe de la evaluación listo para compartir.",
+              esCirculo: true,
+            ),
         ];
         break;
 
       case 'EVALUAR_RUBRICA':
         targets = [
           if (keys.containsKey('importar'))
-            _crearTarget(id: "er_imp", key: keys['importar']!, paso: "1", titulo: "Importar Excel", mensaje: "Carga tu lista de alumnos masivamente usando nuestra plantilla de Excel.", esCirculo: false),
+            _crearTarget(
+              id: "er_imp",
+              key: keys['importar']!,
+              paso: "1",
+              titulo: "Importación Masiva",
+              mensaje: "Carga listas de estudiantes automáticamente subiendo un archivo Excel.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('selector'))
-            _crearTarget(id: "er_sel", key: keys['selector']!, paso: "2", titulo: "Elegir Alumno", mensaje: "Selecciona al estudiante que vas a calificar de la lista cargada.", esCirculo: false),
+            _crearTarget(
+              id: "er_sel",
+              key: keys['selector']!,
+              paso: "2",
+              titulo: "Selección de Estudiante",
+              mensaje: "Elige al estudiante que vas a calificar desde la lista importada.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('tab_manual'))
-            _crearTarget(id: "er_man", key: keys['tab_manual']!, paso: "3", titulo: "Manual", mensaje: "Si lo prefieres, puedes ingresar los datos del alumno directamente aquí.", esCirculo: false),
+            _crearTarget(
+              id: "er_man",
+              key: keys['tab_manual']!,
+              paso: "3",
+              titulo: "Ingreso Manual",
+              mensaje: "Ingresa los datos del estudiante de forma directa si no utilizas una lista precalculada.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('btn_comenzar'))
-            _crearTarget(id: "er_btn", key: keys['btn_comenzar']!, paso: "4", titulo: "Comenzar", mensaje: "Entra a la interfaz de calificación interactiva para empezar el proceso.", esCirculo: false),
+            _crearTarget(
+              id: "er_btn",
+              key: keys['btn_comenzar']!,
+              paso: "4",
+              titulo: "Comenzar Evaluación",
+              mensaje: "Abre la pantalla interactiva de calificación para este estudiante.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
         ];
         break;
 
-      case 'EJECUTAR_EVALUACION':
+      case 'EJECUTAR_EVALUACION_TRADICIONAL':
         targets = [
-          if (keys.containsKey('primer_analitico'))
-            _crearTarget(id: "ee_ana", key: keys['primer_analitico']!, paso: "1", titulo: "Calificar", mensaje: "Utiliza los controles para marcar el nivel de desempeño en cada indicador.", esCirculo: false),
-          if (keys.containsKey('valor_descriptor'))
-            _crearTarget(id: "ee_desc", key: keys['valor_descriptor']!, paso: "2", titulo: "Subtotal", mensaje: "Muestra el puntaje parcial obtenido en este nivel según los analíticos marcados.", esCirculo: false),
+          if (keys.containsKey('primer_nivel'))
+            _crearTarget(
+              id: "eet_nivel",
+              key: keys['primer_nivel']!,
+              paso: "1",
+              titulo: "Marcación de Desempeño",
+              mensaje: "Selecciona el descriptor que represente el nivel de logro demostrado por el estudiante.",
+              esCirculo: false,
+            ),
           if (keys.containsKey('nota_final'))
-            _crearTarget(id: "ee_nota", key: keys['nota_final']!, paso: "3", titulo: "Total Real", mensaje: "Observa en tiempo real cómo se actualiza la calificación total a medida que evalúas.", esCirculo: false),
+            _crearTarget(
+              id: "eet_nota",
+              key: keys['nota_final']!,
+              paso: "2",
+              titulo: "Nota en Tiempo Real",
+              mensaje: "Visualiza cómo se actualiza la calificación total a medida que completas cada criterio.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
           if (keys.containsKey('btn_guardar_eval'))
-            _crearTarget(id: "ee_save", key: keys['btn_guardar_eval']!, paso: "4", titulo: "Finalizar", mensaje: "Guarda la evaluación completa y sincroniza el resultado con el historial.", esCirculo: false),
+            _crearTarget(
+              id: "eet_save",
+              key: keys['btn_guardar_eval']!,
+              paso: "3",
+              titulo: "Guardar Evaluación",
+              mensaje: "Almacena permanentemente el resultado final y sincroniza los datos con el historial.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
+        ];
+        break;
+
+      case 'EJECUTAR_EVALUACION_DIFUSA':
+        targets = [
+          if (keys.containsKey('primer_nivel'))
+            _crearTarget(
+              id: "eed_nivel",
+              key: keys['primer_nivel']!,
+              paso: "1",
+              titulo: "Asignación de Puntaje",
+              mensaje: "Ingresa el puntaje del criterio manualmente o utiliza el slider para ajustarlo.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('nota_final'))
+            _crearTarget(
+              id: "eed_nota",
+              key: keys['nota_final']!,
+              paso: "2",
+              titulo: "Nota en Tiempo Real",
+              mensaje: "Visualiza cómo se actualiza la calificación total a medida que completas cada criterio.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
+          if (keys.containsKey('btn_guardar_eval'))
+            _crearTarget(
+              id: "eed_save",
+              key: keys['btn_guardar_eval']!,
+              paso: "3",
+              titulo: "Guardar Evaluación",
+              mensaje: "Almacena permanentemente el resultado final y sincroniza los datos con el historial.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
         ];
         break;
 
       case 'PERFIL':
         targets = [
           if (keys.containsKey('foto_perfil'))
-            _crearTarget(id: "p_foto", key: keys['foto_perfil']!, paso: "1", titulo: "Avatar", mensaje: "Toca tu imagen para subir una nueva fotografía desde tu galería.", esCirculo: true),
+            _crearTarget(
+              id: "p_foto",
+              key: keys['foto_perfil']!,
+              paso: "1",
+              titulo: "Fotografía de Perfil",
+              mensaje: "Toca tu imagen para subir o cambiar tu foto desde la galería.",
+              esCirculo: true,
+            ),
           if (keys.containsKey('campos_datos'))
-            _crearTarget(id: "p_datos", key: keys['campos_datos']!, paso: "2", titulo: "Información", mensaje: "Actualiza tus nombres o revisa tus datos de identificación registrados.", esCirculo: false),
+            _crearTarget(
+              id: "p_datos",
+              key: keys['campos_datos']!,
+              paso: "2",
+              titulo: "Datos Personales",
+              mensaje: "Modifica tu información personal como nombres, apellidos y tu contraseña (con excepción de tu DNI y mail).",
+              esCirculo: false,
+            ),
           if (keys.containsKey('boton_guardar'))
-            _crearTarget(id: "p_save", key: keys['boton_guardar']!, paso: "3", titulo: "Guardar", mensaje: "Aplica y confirma todos los cambios realizados en tu perfil.", esCirculo: false),
+            _crearTarget(
+              id: "p_save",
+              key: keys['boton_guardar']!,
+              paso: "3",
+              titulo: "Confirmar Cambios",
+              mensaje: "Guarda la información modificada en tu cuenta de usuario.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
         ];
         break;
     }

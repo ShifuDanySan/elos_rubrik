@@ -27,6 +27,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
   final Color headerColor = const Color(0xFF1A237E);
 
   final GlobalKey _keySumaText = GlobalKey();
+  final GlobalKey _keyNivelesGlobales = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
   final GlobalKey _keyPrimerEditCriterio = GlobalKey();
   final GlobalKey _keyEditDescriptorTutorial = GlobalKey();
@@ -150,19 +151,21 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
 
   Future<void> _lanzarTutorial({bool force = false}) async {
     if (force) {
-      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN', 'EDITAR_DESCRIPTOR']);
+      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_DIFUSA', 'EDITAR_DESCRIPTOR']);
     }
 
     Map<String, GlobalKey> tutorialKeys = {
-      'nombre_rubrica': _keySumaText,
+      'barra_estado': _keySumaText,
+      'niveles_globales': _keyNivelesGlobales,
       'lista_criterios': _keyPrimerCriterio,
+      'edit_descriptor': _keyEditDescriptorTutorial,
       'btn_actualizar': _keyBotonFinalizar,
     };
 
     if (mounted) {
       TutorialHelper().showTutorial(
           context: context,
-          pageId: 'EDITAR_RUBRICA_SCREEN',
+          pageId: 'EDITAR_RUBRICA_DIFUSA',
           keys: tutorialKeys,
           force: force
       );
@@ -185,7 +188,16 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
   bool _estanDescriptoresCorrectos() {
     if (listaCriteriosLocal.isEmpty) return false;
     if (nivelesGlobales.isEmpty) return false;
-    return listaCriteriosLocal.every((c) => (c['descriptores'] as List? ?? []).isNotEmpty);
+    return listaCriteriosLocal.every((c) {
+      List descs = c['descriptores'] as List? ?? [];
+      if (descs.isEmpty) return false;
+      return descs.every((d) {
+        String txt = (d['descriptor']?.toString().trim().isNotEmpty == true)
+            ? d['descriptor'].toString().trim()
+            : (d['texto']?.toString().trim() ?? '');
+        return txt.isNotEmpty;
+      });
+    });
   }
 
   Widget _buildHalfBar({required String text, required bool isOk}) {
@@ -211,7 +223,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
         children: [
           _buildHalfBar(text: criteriosOk ? "CRITERIOS DE EVALUACIÓN - OK" : "CRITERIOS DE EVALUACIÓN - REVISAR PORCENTAJES", isOk: criteriosOk),
           const SizedBox(width: 1),
-          _buildHalfBar(text: descriptoresOk ? "NIVELES DE EVALUACIÓN - OK" : "NIVELES DE EVALUACIÓN - REVISAR", isOk: descriptoresOk),
+          _buildHalfBar(text: descriptoresOk ? "NIVELES DE EVALUACIÓN - OK" : "NIVELES DE EVALUACIÓN - REVISAR DESCRIPTORES", isOk: descriptoresOk),
         ],
       ),
     );
@@ -314,6 +326,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
 
   Widget _buildSeccionNivelesGlobales() {
     return Container(
+      key: _keyNivelesGlobales,
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -394,6 +407,17 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
         List descs = crit['descriptores'] ?? [];
         if (descs.isEmpty) {
           errores.add("- '$nombre' no tiene ningún descriptor/nivel.");
+        } else {
+          for (var j = 0; j < descs.length; j++) {
+            var desc = descs[j];
+            String txt = (desc['descriptor']?.toString().trim().isNotEmpty == true)
+                ? desc['descriptor'].toString().trim()
+                : (desc['texto']?.toString().trim() ?? '');
+            if (txt.isEmpty) {
+              String nivelNom = desc['contexto']?.toString() ?? 'Nivel ${j + 1}';
+              errores.add("- '$nombre': Falta completar el texto del descriptor para '$nivelNom'.");
+            }
+          }
         }
       }
     }
@@ -620,6 +644,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
+                  key: _kCtx,
                   controller: descriptorCtrl,
                   autofocus: true,
                   maxLines: 3,
@@ -734,6 +759,9 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
                 List<String> erroresCrit = [];
                 if (pesoCrit == 0) erroresCrit.add("Porcentaje en 0%");
                 if (descs.isEmpty) erroresCrit.add("Sin descriptores");
+                if (descs.any((d) => ((d['descriptor']?.toString().trim().isNotEmpty == true) ? d['descriptor'].toString().trim() : (d['texto']?.toString().trim() ?? '')).isEmpty)) {
+                  erroresCrit.add("Descriptores incompletos");
+                }
                 final bool critError = erroresCrit.isNotEmpty;
 
                 return Card(
@@ -762,7 +790,9 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
                         children: [
                           ...descs.asMap().entries.map((e) {
                             final d = e.value;
-                            final String descTexto = d['descriptor']?.toString() ?? d['texto']?.toString() ?? '';
+                            final String descTexto = (d['descriptor']?.toString().trim().isNotEmpty == true)
+                                ? d['descriptor'].toString().trim()
+                                : (d['texto']?.toString().trim() ?? '');
 
                             final double valorDescriptor = (pesoCrit / 100.0) * 10.0;
                             final String valorDescriptorFormatted = (valorDescriptor % 1 == 0)
@@ -775,7 +805,12 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
-                                border: const Border(left: BorderSide(color: Colors.blue, width: 5)),
+                                border: Border(
+                                  left: BorderSide(
+                                    color: descTexto.isEmpty ? Colors.red : Colors.blue,
+                                    width: 5,
+                                  ),
+                                ),
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
                               ),
                               child: Column(
@@ -802,7 +837,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
                                     Text(descTexto, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
                                   ] else ...[
                                     const SizedBox(height: 4),
-                                    const Text("Sin texto de descriptor (Toca el lápiz para agregar)", style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic)),
+                                    const Text("Sin texto de descriptor (Toca el lápiz para agregar)", style: TextStyle(fontSize: 11, color: Colors.red, fontStyle: FontStyle.italic)),
                                   ],
                                 ],
                               ),

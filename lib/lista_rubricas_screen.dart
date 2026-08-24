@@ -27,6 +27,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
 
   final GlobalKey _keyBuscador = GlobalKey();
   final GlobalKey _keyFiltroFecha = GlobalKey();
+  final GlobalKey _keyTipoRubrica = GlobalKey();
   final GlobalKey _keyPrimeraCard = GlobalKey();
 
   Future<void> _abrirManualPdf() async {
@@ -56,6 +57,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
       pageId: 'LISTA_RUBRICAS',
       keys: {
         'buscador': _keyBuscador,
+        'tipo_rubrica': _keyTipoRubrica,
         'filtro_fecha': _keyFiltroFecha,
         'primera_card': _keyPrimeraCard,
       },
@@ -117,7 +119,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
       }
 
       if (tienePesoCeroOInvalido) {
-        errores.add("Cada criterio debe tener un porcentaje asignado estrictamente mayor a 0%.");
+        errores.add("Cada criterio debe tener un porcentaje asignado strictly mayor a 0%.");
       }
 
       if (sumaPesos < 99.0 || sumaPesos > 100.1) {
@@ -498,6 +500,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
+                  key: _keyTipoRubrica,
                   value: _tipoRubricaFiltro,
                   hint: const Text("SELECCIONE EL TIPO DE RÚBRICA", style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
                   decoration: InputDecoration(

@@ -10,10 +10,14 @@ class PdfService {
   static Future<void> generarReporteEvaluacion(Map<String, dynamic> evaluacion) async {
     final pdf = pw.Document();
 
+    final fontRegular = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+
     final String estudiante = (evaluacion['estudiante'] ?? 'SIN NOMBRE').toString().toUpperCase();
     final String rubrica = (evaluacion['nombre'] ?? 'RÚBRICA').toString();
     final double notaFinal = (evaluacion['notaFinal'] ?? 0.0).toDouble();
     final List criterios = evaluacion['criterios'] ?? [];
+    final bool esDifusa = evaluacion['esDifusa'] ?? false;
 
     String fechaStr = "S/F";
     if (evaluacion['fecha'] is Timestamp) {
@@ -26,6 +30,24 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
+        theme: pw.ThemeData.withFont(
+          base: fontRegular,
+          bold: fontBold,
+        ),
+        footer: (pw.Context context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Text(
+              'Página ${context.pageNumber} de ${context.pagesCount}',
+              style: pw.TextStyle(
+                font: fontRegular,
+                fontSize: 9,
+                color: PdfColors.grey600,
+              ),
+            ),
+          );
+        },
         build: (pw.Context context) {
           return [
             // ENCABEZADO Y TÍTULO
@@ -128,11 +150,25 @@ class PdfService {
             // LISTADO DE CRITERIOS
             ...criterios.asMap().entries.map((entry) {
               int idx = entry.key;
-              var c = entry.value;
+              var c = Map<String, dynamic>.from(entry.value);
 
               final String nombreCriterio = (c['nombre'] ?? 'Criterio').toString().toUpperCase();
               final double porcentaje = (c['porcentaje'] ?? 0.0).toDouble();
-              final Map<String, dynamic>? nivelSeleccionado = c['nivel_seleccionado'];
+
+              final Map<String, dynamic>? nivelSeleccionado = c['nivel_seleccionado'] != null
+                  ? Map<String, dynamic>.from(c['nivel_seleccionado'])
+                  : null;
+
+              final List descriptores = c['descriptores'] != null
+                  ? List.from(c['descriptores'])
+                  : (nivelSeleccionado != null ? [nivelSeleccionado] : []);
+
+              String tituloNivel = "NIVEL SELECCIONADO";
+              if (esDifusa) {
+                tituloNivel = "NIVEL DE LOGRO ALCANZADO EN EL DESARROLLO DE LA COMPETENCIA (GRADO EN EL QUE SE ALCANZÓ LA COMPETENCIA)";
+              } else if (nivelSeleccionado != null) {
+                tituloNivel = (nivelSeleccionado['nivel_nombre'] ?? 'NIVEL SELECCIONADO').toString().toUpperCase();
+              }
 
               return pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 12),
@@ -176,12 +212,14 @@ class PdfService {
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                          pw.Text(
-                            (nivelSeleccionado['nivel_nombre'] ?? 'NIVEL SELECCIONADO').toString().toUpperCase(),
-                            style: pw.TextStyle(
-                              fontWeight: pw.FontWeight.bold,
-                              fontSize: 10,
-                              color: PdfColor.fromHex('#00796B'),
+                          pw.Expanded(
+                            child: pw.Text(
+                              tituloNivel,
+                              style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold,
+                                fontSize: 10,
+                                color: PdfColor.fromHex('#00796B'),
+                              ),
                             ),
                           ),
                           if (nivelSeleccionado.containsKey('puntos'))
@@ -221,7 +259,7 @@ class PdfService {
                               ),
                             ),
                             pw.Text(
-                              ((nivelSeleccionado['valor_descriptor'] ?? 0.0) as num).toStringAsFixed(2),
+                              ((nivelSeleccionado['valor_descriptor'] ?? 0.0) as num).toDouble().toStringAsFixed(2),
                               style: pw.TextStyle(
                                 fontWeight: pw.FontWeight.bold,
                                 fontSize: 10,
@@ -231,6 +269,56 @@ class PdfService {
                           ],
                         ),
                       ),
+                    ] else if (descriptores.isNotEmpty) ...[
+                      ...descriptores.map((descRaw) {
+                        final Map<String, dynamic> desc = Map<String, dynamic>.from(descRaw);
+                        final double valorDescriptor = ((desc['valor_descriptor'] ?? desc['resultado_descriptor'] ?? 0.0) as num).toDouble();
+                        final String texto = desc['texto'] ?? desc['descripcion'] ?? desc['contexto'] ?? '';
+
+                        return pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 6),
+                          padding: const pw.EdgeInsets.all(6),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey100,
+                            borderRadius: pw.BorderRadius.circular(4),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Row(
+                                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                children: [
+                                  pw.Expanded(
+                                    child: pw.Text(
+                                      (desc['nivel_nombre'] ?? desc['contexto'] ?? 'Descriptor').toString(),
+                                      style: pw.TextStyle(
+                                        fontWeight: pw.FontWeight.bold,
+                                        fontSize: 9,
+                                        color: PdfColor.fromHex('#1A237E'),
+                                      ),
+                                    ),
+                                  ),
+                                  pw.Text(
+                                    valorDescriptor.toStringAsFixed(2),
+                                    style: pw.TextStyle(
+                                      fontWeight: pw.FontWeight.bold,
+                                      fontSize: 10,
+                                      color: PdfColor.fromHex('#1A237E'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (texto.isNotEmpty) ...[
+                                pw.SizedBox(height: 2),
+                                pw.Text(
+                                  texto,
+                                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey800),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ] else ...[
                       pw.Text(
                         "Sin nivel seleccionado.",

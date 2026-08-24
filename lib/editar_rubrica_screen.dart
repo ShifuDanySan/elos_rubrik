@@ -23,6 +23,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   final Color headerColor = const Color(0xFF1A237E);
 
   final GlobalKey _keySumaText = GlobalKey();
+  final GlobalKey _keyNivelesGlobales = GlobalKey();
   final GlobalKey _keyPrimerCriterio = GlobalKey();
   final GlobalKey _keyPrimerAddDescriptor = GlobalKey();
   final GlobalKey _keyPrimerEditCriterio = GlobalKey();
@@ -62,7 +63,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     }
   }
 
-  // Método auxiliar para mostrar alertas de validación bloqueantes
   void _mostrarAviso(String titulo, String mensaje) {
     showDialog(
       context: context,
@@ -119,7 +119,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     if (mounted && doc.exists) {
       final criteriosData = List.from(doc.data()?['criterios'] ?? []);
 
-      // Extraer estructura de niveles compartidos del primer criterio existente si los hay
       List<Map<String, dynamic>> tempNiveles = [];
       if (criteriosData.isNotEmpty) {
         final List primerDescs = criteriosData.first['descriptores'] ?? [];
@@ -145,8 +144,10 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     }
 
     Map<String, GlobalKey> tutorialKeys = {
-      'nombre_rubrica': _keySumaText,
+      'barra_estado': _keySumaText,
+      'niveles_globales': _keyNivelesGlobales,
       'lista_criterios': _keyPrimerCriterio,
+      'edit_descriptor': _keyEditDescriptorTutorial,
       'btn_actualizar': _keyBotonFinalizar,
     };
 
@@ -176,7 +177,11 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   bool _estanDescriptoresCorrectos() {
     if (listaCriteriosLocal.isEmpty) return false;
     if (nivelesGlobales.isEmpty) return false;
-    return listaCriteriosLocal.every((c) => (c['descriptores'] as List? ?? []).isNotEmpty);
+    return listaCriteriosLocal.every((c) {
+      List descs = c['descriptores'] as List? ?? [];
+      if (descs.isEmpty) return false;
+      return descs.every((d) => (d['descriptor']?.toString().trim() ?? '').isNotEmpty);
+    });
   }
 
   Widget _buildHalfBar({required String text, required bool isOk}) {
@@ -202,13 +207,12 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         children: [
           _buildHalfBar(text: criteriosOk ? "CRITERIOS DE EVALUACIÓN - OK" : "CRITERIOS DE EVALUACIÓN - REVISAR PORCENTAJES", isOk: criteriosOk),
           const SizedBox(width: 1),
-          _buildHalfBar(text: descriptoresOk ? "NIVELES DE EVALUACIÓN - OK" : "NIVELES DE EVALUACIÓN - REVISAR", isOk: descriptoresOk),
+          _buildHalfBar(text: descriptoresOk ? "NIVELES DE EVALUACIÓN - OK" : "NIVELES DE EVALUACIÓN - REVISAR DESCRIPTORES", isOk: descriptoresOk),
         ],
       ),
     );
   }
 
-  // Sincroniza la lista de niveles globales con todos los criterios
   void _sincronizarNivelesConCriterios() {
     for (var c in listaCriteriosLocal) {
       List descsExistentes = List.from(c['descriptores'] ?? []);
@@ -218,7 +222,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         final ng = nivelesGlobales[i];
         String descTexto = '';
 
-        // Preservar texto de descriptor si ya existía en esa posición
         if (i < descsExistentes.length) {
           descTexto = descsExistentes[i]['descriptor'] ?? '';
         }
@@ -309,6 +312,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   Widget _buildSeccionNivelesGlobales() {
     return Container(
+      key: _keyNivelesGlobales,
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -402,6 +406,15 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
         List descs = crit['descriptores'] ?? [];
         if (descs.isEmpty) {
           errores.add("- '$nombre' no tiene ningún descriptor/nivel.");
+        } else {
+          for (var j = 0; j < descs.length; j++) {
+            var desc = descs[j];
+            String txt = desc['descriptor']?.toString().trim() ?? '';
+            if (txt.isEmpty) {
+              String nivelNom = desc['contexto']?.toString() ?? 'Nivel ${j + 1}';
+              errores.add("- '$nombre': Falta completar el texto del descriptor para '$nivelNom'.");
+            }
+          }
         }
       }
     }
@@ -506,7 +519,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   }
 
   void _mostrarDialogoCriterio({Map<String, dynamic>? existente, int? index}) {
-    // Restricción: No se pueden agregar nuevos criterios sin niveles previamente cargados
     if (existente == null && nivelesGlobales.isEmpty) {
       _mostrarAviso("Niveles Requeridos", "Debe agregar al menos un Nivel Global de Evaluación antes de agregar Criterios.");
       return;
@@ -554,7 +566,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
             List<dynamic> listaTemp = List.from(listaCriteriosLocal);
 
-            // Generar descriptores usando los niveles globales actuales
             List nuevosDescriptores = nivelesGlobales.map((ng) => {
               'contexto': ng['contexto'],
               'peso': ng['peso'],
@@ -627,6 +638,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
+                  key: _kCtx,
                   controller: descriptorCtrl,
                   autofocus: true,
                   maxLines: 3,
@@ -735,6 +747,9 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                 List<String> erroresCrit = [];
                 if (pesoCrit == 0) erroresCrit.add("Porcentaje en 0%");
                 if (descs.isEmpty) erroresCrit.add("Sin descriptores");
+                if (descs.any((d) => (d['descriptor']?.toString().trim() ?? '').isEmpty)) {
+                  erroresCrit.add("Descriptores incompletos");
+                }
                 final bool critError = erroresCrit.isNotEmpty;
 
                 return Card(
@@ -766,7 +781,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                             final String descTexto = d['descriptor']?.toString() ?? '';
                             final double puntosNivel = double.tryParse(d['peso']?.toString() ?? '0') ?? 0.0;
 
-                            // Cálculo del valor del descriptor
                             final double valorDescriptor = (pesoCrit / 100.0) * puntosNivel;
                             final String valorDescriptorFormatted = (valorDescriptor % 1 == 0)
                                 ? valorDescriptor.toInt().toString()
@@ -778,7 +792,12 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
-                                border: const Border(left: BorderSide(color: Colors.blue, width: 5)),
+                                border: Border(
+                                  left: BorderSide(
+                                    color: descTexto.trim().isEmpty ? Colors.red : Colors.blue,
+                                    width: 5,
+                                  ),
+                                ),
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
                               ),
                               child: Column(
@@ -800,7 +819,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
                                       ),
                                     ],
                                   ),
-                                  if (descTexto.isNotEmpty) ...[
+                                  if (descTexto.trim().isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(descTexto, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
                                   ] else ...[
