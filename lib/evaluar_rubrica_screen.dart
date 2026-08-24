@@ -281,6 +281,9 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
   }
 
   Widget _buildCustomAppBar() {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
     return Container(
       padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 10, bottom: 5),
       decoration: const BoxDecoration(
@@ -318,30 +321,37 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: _primaryColor,
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          ),
+                      if (isMobile)
+                        IconButton(
+                          icon: const Icon(Icons.menu_book_rounded, color: Colors.white),
+                          tooltip: 'Manual de usuario',
                           onPressed: _abrirManualPdf,
-                          icon: const Icon(Icons.menu_book_rounded, size: 20),
-                          label: const Text(
-                            'MANUAL DE USUARIO',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              letterSpacing: 0.5,
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: _primaryColor,
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            ),
+                            onPressed: _abrirManualPdf,
+                            icon: const Icon(Icons.menu_book_rounded, size: 20),
+                            label: const Text(
+                              'MANUAL DE USUARIO',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                       TutorialHelper.helpButton(context, () => _iniciarTutorial(force: true)),
                       const SizedBox(width: 5),
                       AuthHelper.logoutButton(context),
@@ -438,6 +448,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                 icon: Icons.person_outline,
                 focusNode: _nombreFocus,
                 textInputAction: TextInputAction.next,
+                autofocus: true,
               ),
               _buildStyledField(
                 controller: _apellidoCtrl,
@@ -475,12 +486,14 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
     List<TextInputFormatter>? formatters,
     int? maxLength,
     FocusNode? focusNode,
+    bool autofocus = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
         focusNode: focusNode,
+        autofocus: autofocus,
         textInputAction: textInputAction,
         onFieldSubmitted: onSubmitted,
         keyboardType: keyboardType,

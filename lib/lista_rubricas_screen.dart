@@ -424,6 +424,9 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
@@ -432,30 +435,37 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: blueCrear,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              ),
+          if (isMobile)
+            IconButton(
+              icon: const Icon(Icons.menu_book_rounded),
+              tooltip: 'Manual de usuario',
               onPressed: _abrirManualPdf,
-              icon: const Icon(Icons.menu_book_rounded, size: 20),
-              label: const Text(
-                'MANUAL DE USUARIO',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: blueCrear,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                ),
+                onPressed: _abrirManualPdf,
+                icon: const Icon(Icons.menu_book_rounded, size: 20),
+                label: const Text(
+                  'MANUAL DE USUARIO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
           Container(
             key: _keyFiltroFecha,
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

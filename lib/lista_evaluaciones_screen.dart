@@ -94,6 +94,8 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
   @override
   Widget build(BuildContext context) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
     const Color primaryColor = Color(0xFF1A237E);
 
     return Scaffold(
@@ -104,31 +106,41 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: primaryColor,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              ),
+          if (isMobile)
+            IconButton(
+              icon: const Icon(Icons.menu_book_rounded),
+              tooltip: 'Manual de usuario',
               onPressed: _abrirManualPdf,
-              icon: const Icon(Icons.menu_book_rounded, size: 20),
-              label: const Text(
-                'MANUAL DE USUARIO',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: primaryColor,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                ),
+                onPressed: _abrirManualPdf,
+                icon: const Icon(Icons.menu_book_rounded, size: 20),
+                label: const Text(
+                  'MANUAL DE USUARIO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
-          TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
+          TutorialHelper.helpButton(context, () async {
+            await TutorialHelper().resetTutorials(['LISTA_EVALUACIONES']);
+            _showTutorial(force: true);
+          }),
           IconButton(
             key: _keyFiltroCalendario,
             icon: const Icon(Icons.calendar_today),
@@ -162,6 +174,7 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
               children: [
                 TextField(
                   key: _keyBuscadorEstudiante,
+                  autofocus: true,
                   decoration: InputDecoration(
                     hintText: "Buscar estudiante...",
                     prefixIcon: const Icon(Icons.person_search, color: primaryColor),
