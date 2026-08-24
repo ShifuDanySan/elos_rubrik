@@ -173,7 +173,7 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
       cell.value = excel_lib.TextCellValue(headers[i]);
       cell.cellStyle = headerStyle;
     }
-    final List<int>? fileBytes = excel.save();
+    final List<int>? fileBytes = excel.encode();
     if (fileBytes != null) {
       final content = Uint8List.fromList(fileBytes);
       final blob = html.Blob([content], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

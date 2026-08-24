@@ -53,6 +53,8 @@ class TutorialHelper {
     required Map<String, GlobalKey> keys,
     bool force = false,
   }) async {
+    if (isShowing) return;
+
     final prefs = await SharedPreferences.getInstance();
     bool seen = prefs.getBool('seen_tutorial_$pageId') ?? false;
 
@@ -159,6 +161,7 @@ class TutorialHelper {
               titulo: "Criterios de Evaluación",
               mensaje: "Aquí se listan los criterios. Puedes editar su nombre y asignar el porcentaje correspondiente a cada competencia.",
               esCirculo: false,
+              alineacion: ContentAlign.top,
             ),
           if (keys.containsKey('edit_descriptor'))
             _crearTarget(
@@ -328,7 +331,7 @@ class TutorialHelper {
               key: keys['importar']!,
               paso: "1",
               titulo: "Importación Masiva",
-              mensaje: "Carga listas de estudiantes automáticamente subiendo un archivo Excel.",
+              mensaje: "Carga una lista de estudiantes automáticamente subiendo un archivo Excel; puedes descargar una plantilla para facilitar tu trabajo.",
               esCirculo: false,
             ),
           if (keys.containsKey('selector'))
