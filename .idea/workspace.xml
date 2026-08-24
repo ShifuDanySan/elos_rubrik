@@ -11,6 +11,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b06c69b5-2fee-47d4-ae7c-4704b8d7e316" name="Cambios" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/profile_edit_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/profile_edit_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/tutorial_helper.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/tutorial_helper.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

@@ -133,7 +133,6 @@ class TutorialHelper {
         break;
 
       case 'EDITAR_RUBRICA_SCREEN':
-      case 'EDITAR_RUBRICA_DIFUSA':
         targets = [
           if (keys.containsKey('barra_estado') || keys.containsKey('nombre_rubrica'))
             _crearTarget(
@@ -151,6 +150,59 @@ class TutorialHelper {
               paso: "2",
               titulo: "Niveles Globales de Evaluación",
               mensaje: "Define los niveles de logro (ej. Excelente, Bueno) y el puntaje asignado que se aplicarán automáticamente a todos los criterios.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('lista_criterios'))
+            _crearTarget(
+              id: "ed_crit",
+              key: keys['lista_criterios']!,
+              paso: "3",
+              titulo: "Criterios de Evaluación",
+              mensaje: "Aquí se listan los criterios. Puedes editar su nombre y asignar el porcentaje correspondiente a cada competencia.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
+          if (keys.containsKey('edit_descriptor'))
+            _crearTarget(
+              id: "ed_desc",
+              key: keys['edit_descriptor']!,
+              paso: "4",
+              titulo: "Texto del Descriptor (Obligatorio)",
+              mensaje: "Es necesario presionar el icono de lápiz para redactar el texto explicativo de cada nivel de logro. No podrás guardar hasta completar todos los descriptores.",
+              esCirculo: true,
+              alineacion: ContentAlign.top,
+            ),
+          if (keys.containsKey('btn_actualizar'))
+            _crearTarget(
+              id: "ed_upd",
+              key: keys['btn_actualizar']!,
+              paso: "5",
+              titulo: "Guardar Rúbrica",
+              mensaje: "Al presionar este botón se validarán los porcentajes y descriptores completos antes de almacenar los datos en la nube.",
+              esCirculo: false,
+              alineacion: ContentAlign.top,
+            ),
+        ];
+        break;
+
+      case 'EDITAR_RUBRICA_DIFUSA':
+        targets = [
+          if (keys.containsKey('barra_estado') || keys.containsKey('nombre_rubrica'))
+            _crearTarget(
+              id: "ed_bar",
+              key: (keys['barra_estado'] ?? keys['nombre_rubrica'])!,
+              paso: "1",
+              titulo: "Barra de Estado y Validación",
+              mensaje: "Indica en verde cuando los porcentajes de los criterios suman 100% y cuando todos los descriptores tienen su texto completado.",
+              esCirculo: false,
+            ),
+          if (keys.containsKey('niveles_globales'))
+            _crearTarget(
+              id: "ed_niv",
+              key: keys['niveles_globales']!,
+              paso: "2",
+              titulo: "Niveles Globales de Evaluación",
+              mensaje: "Configurar una rúbrica difusa será más simple que una rúbrica tradicional, ya que se establece por defecto un solo nivel con el máximo de puntos cargados: 10 puntos por defecto (que no podrán ser modificados).",
               esCirculo: false,
             ),
           if (keys.containsKey('lista_criterios'))

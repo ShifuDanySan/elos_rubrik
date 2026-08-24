@@ -199,6 +199,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
@@ -208,30 +211,37 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
         elevation: 0,
         centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _primaryColor,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              ),
+          if (isMobile)
+            IconButton(
+              icon: const Icon(Icons.menu_book_rounded),
+              tooltip: 'Manual de usuario',
               onPressed: _abrirManualPdf,
-              icon: const Icon(Icons.menu_book_rounded, size: 20),
-              label: const Text(
-                'MANUAL DE USUARIO',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: _primaryColor,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                ),
+                onPressed: _abrirManualPdf,
+                icon: const Icon(Icons.menu_book_rounded, size: 20),
+                label: const Text(
+                  'MANUAL DE USUARIO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           AuthHelper.logoutButton(context),
         ],
@@ -253,7 +263,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
             const SizedBox(height: 20),
             Center(
               child: Container(
-                width: 500,
+                width: isMobile ? double.infinity : 500,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Card(
                   elevation: 6,
