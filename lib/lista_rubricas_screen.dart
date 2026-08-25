@@ -430,7 +430,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        title: const Text("Mis Rúbricas", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: isMobile ? null : const Text("Mis Rúbricas", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: blueCrear,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -496,9 +496,22 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 borderRadius: BorderRadius.only(bottomLeft: Radius.circular(25), bottomRight: Radius.circular(25))
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (isMobile) ...[
+                  const Text(
+                    "Mis Rúbricas",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   key: _keyBuscador,
+                  autofocus: true,
                   decoration: InputDecoration(
                     hintText: "Buscar rúbrica...",
                     prefixIcon: const Icon(Icons.search, color: blueCrear),
