@@ -53,7 +53,7 @@ class EvaluarRubricaScreen extends StatefulWidget {
   State<EvaluarRubricaScreen> createState() => _EvaluarRubricaScreenState();
 }
 
-class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
@@ -80,7 +80,6 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
 
     _glowController = AnimationController(
@@ -108,20 +107,11 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     _glowController.dispose();
     _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _dniCtrl.dispose();
     _nombreFocus.dispose(); _apellidoFocus.dispose(); _dniFocus.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    TutorialHelper().forceClose();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) TutorialHelper().reShowLastTutorial(context);
-    });
   }
 
   Future<void> _abrirManualPdf() async {

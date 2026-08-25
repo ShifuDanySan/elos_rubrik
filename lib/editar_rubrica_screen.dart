@@ -18,7 +18,7 @@ class EditarRubricaScreen extends StatefulWidget {
   State<EditarRubricaScreen> createState() => _EditarRubricaScreenState();
 }
 
-class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsBindingObserver {
+class _EditarRubricaScreenState extends State<EditarRubricaScreen> {
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
@@ -42,13 +42,11 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _cargarDatosIniciales();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -101,14 +99,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
     );
   }
 
-  @override
-  void didChangeMetrics() {
-    TutorialHelper().forceClose();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) TutorialHelper().reShowLastTutorial(context);
-    });
-  }
-
   Future<void> _cargarDatosIniciales() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final doc = await FirebaseFirestore.instance
@@ -140,7 +130,7 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
 
   Future<void> _lanzarTutorial({bool force = false}) async {
     if (force) {
-      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN', 'EDITAR_DESCRIPTOR']);
+      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN']);
     }
 
     Map<String, GlobalKey> tutorialKeys = {
@@ -738,7 +728,6 @@ class _EditarRubricaScreenState extends State<EditarRubricaScreen> with WidgetsB
             ),
           ),
           TutorialHelper.helpButton(context, () async {
-            await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_SCREEN', 'EDITAR_DESCRIPTOR']);
             _lanzarTutorial(force: true);
           }),
           AuthHelper.logoutButton(context)

@@ -22,7 +22,7 @@ class EditarRubricaDifusaScreen extends StatefulWidget {
   State<EditarRubricaDifusaScreen> createState() => _EditarRubricaDifusaScreenState();
 }
 
-class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> with WidgetsBindingObserver {
+class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> {
   final String __app_id = 'rubrica_evaluator';
   final Color headerColor = const Color(0xFF1A237E);
 
@@ -45,13 +45,11 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _cargarDatosIniciales();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -104,14 +102,6 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
     );
   }
 
-  @override
-  void didChangeMetrics() {
-    TutorialHelper().forceClose();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) TutorialHelper().reShowLastTutorial(context);
-    });
-  }
-
   Future<void> _cargarDatosIniciales() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final doc = await FirebaseFirestore.instance
@@ -151,7 +141,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
 
   Future<void> _lanzarTutorial({bool force = false}) async {
     if (force) {
-      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_DIFUSA', 'EDITAR_DESCRIPTOR']);
+      await TutorialHelper().resetTutorials(['EDITAR_RUBRICA_DIFUSA']);
     }
 
     Map<String, GlobalKey> tutorialKeys = {

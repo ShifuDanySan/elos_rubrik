@@ -20,32 +20,12 @@ class DetalleEvaluacionScreen extends StatefulWidget {
   State<DetalleEvaluacionScreen> createState() => _DetalleEvaluacionScreenState();
 }
 
-class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with WidgetsBindingObserver {
+class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> {
   final GlobalKey _keyPuntajeTotal = GlobalKey();
   final GlobalKey _keyTablaResumen = GlobalKey();
   final GlobalKey _keyListaDesglosada = GlobalKey();
   final GlobalKey _keyBtnPdf = GlobalKey();
   final GlobalKey _keyBtnInfo = GlobalKey();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    TutorialHelper().forceClose();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) TutorialHelper().reShowLastTutorial(context);
-    });
-  }
 
   Future<void> _abrirManualPdf() async {
     final Uri uri = Uri.parse(_pdfUrl);
@@ -320,7 +300,6 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
     final Map<String, dynamic>? nivelSeleccionado = criterio['nivel_seleccionado'];
     final bool esDifusa = widget.evaluacion['esDifusa'] ?? false;
 
-    // Recupera la lista de descriptores si se encuentra guardada directamente o intenta evaluar el nivel seleccionado
     final List descriptores = criterio['descriptores'] ?? (nivelSeleccionado != null ? [nivelSeleccionado] : []);
 
     String tituloNivel = "NIVEL SELECCIONADO";
