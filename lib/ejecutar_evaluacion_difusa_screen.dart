@@ -248,8 +248,10 @@ class _EjecutarEvaluacionDifusaScreenState extends State<EjecutarEvaluacionDifus
     return Scaffold(
       backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        toolbarHeight: 120,
-        title: Column(
+        toolbarHeight: isMobile ? kToolbarHeight : 120,
+        title: isMobile
+            ? null
+            : Column(
           children: [
             Text(widget.nombre.toUpperCase(), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
             Text("ESTUDIANTE: ${widget.estudiante.toUpperCase()}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -295,16 +297,52 @@ class _EjecutarEvaluacionDifusaScreenState extends State<EjecutarEvaluacionDifus
       ),
       body: Column(
         children: [
-          Container(
-            height: 20,
-            decoration: const BoxDecoration(
-              color: Color(0xFF1A237E),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(25),
-                bottomRight: Radius.circular(25),
+          if (isMobile)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: primaryDark,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    widget.nombre.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "ESTUDIANTE: ${widget.estudiante.toUpperCase()}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A237E),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
               ),
             ),
-          ),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),

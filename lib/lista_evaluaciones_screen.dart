@@ -101,14 +101,21 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFB0BEC5),
       appBar: AppBar(
-        title: const Text("Mis Evaluaciones", style: TextStyle(fontWeight: FontWeight.bold)),
+        toolbarHeight: isMobile ? kToolbarHeight : 80,
+        title: isMobile
+            ? null
+            : const Text(
+          "Mis Evaluaciones",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         actions: [
           if (isMobile)
             IconButton(
-              icon: const Icon(Icons.menu_book_rounded),
+              icon: const Icon(Icons.menu_book_rounded, color: Colors.white),
               tooltip: 'Manual de usuario',
               onPressed: _abrirManualPdf,
             )
@@ -171,7 +178,20 @@ class _ListaEvaluacionesScreenState extends State<ListaEvaluacionesScreen> {
               ),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (isMobile) ...[
+                  const Text(
+                    "MIS EVALUACIONES",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   key: _keyBuscadorEstudiante,
                   autofocus: true,

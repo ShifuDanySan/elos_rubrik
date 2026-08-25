@@ -709,7 +709,7 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
       appBar: AppBar(
         backgroundColor: headerColor,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () async { if (await _advertirSalida()) Navigator.pop(context); }),
-        title: Text(widget.nombreInicial, style: const TextStyle(color: Colors.white, fontSize: 14)),
+        title: isMobile ? null : Text(widget.nombreInicial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           if (isMobile)
             IconButton(
@@ -755,6 +755,27 @@ class _EditarRubricaDifusaScreenState extends State<EditarRubricaDifusaScreen> w
       ),
       body: Column(
         children: [
+          if (isMobile)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: headerColor,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
+              ),
+              child: Text(
+                widget.nombreInicial,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           _buildStatusBar(),
           _buildSeccionNivelesGlobales(),
           Expanded(

@@ -241,11 +241,35 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
     return Scaffold(
       backgroundColor: _backgroundColor,
       body: Column(
         children: [
           _buildCustomAppBar(),
+          if (isMobile)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: _primaryColor,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
+              ),
+              child: Text(
+                widget.nombreRubrica,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           Expanded(
             child: Center(
               child: SingleChildScrollView(
@@ -304,18 +328,19 @@ class _EvaluarRubricaScreenState extends State<EvaluarRubricaScreen> with Ticker
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 110),
-                    child: Text(
-                      widget.nombreRubrica.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                if (!isMobile)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 110),
+                      child: Text(
+                        widget.nombreRubrica.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                ),
                 Positioned(
                   right: 15,
                   child: Row(

@@ -131,37 +131,54 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
       fechaStr = DateFormat('dd/MM/yyyy').format((widget.evaluacion['fecha'] as Timestamp).toDate());
     }
 
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Detalle de Evaluación", style: TextStyle(fontWeight: FontWeight.bold)),
+        toolbarHeight: isMobile ? kToolbarHeight : 80,
+        title: isMobile
+            ? null
+            : const Text(
+          "Detalle de Evaluación",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
         backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _primaryColor,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              ),
+          if (isMobile)
+            IconButton(
+              icon: const Icon(Icons.menu_book_rounded, color: Colors.white),
+              tooltip: 'Manual de usuario',
               onPressed: _abrirManualPdf,
-              icon: const Icon(Icons.menu_book_rounded, size: 20),
-              label: const Text(
-                'MANUAL DE USUARIO',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: _primaryColor,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                ),
+                onPressed: _abrirManualPdf,
+                icon: const Icon(Icons.menu_book_rounded, size: 20),
+                label: const Text(
+                  'MANUAL DE USUARIO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
           IconButton(key: _keyBtnInfo, icon: const Icon(Icons.info_outline), onPressed: _mostrarExplicacionLCD),
           TutorialHelper.helpButton(context, () => _showTutorial(force: true)),
           Padding(
@@ -184,40 +201,67 @@ class _DetalleEvaluacionScreenState extends State<DetalleEvaluacionScreen> with 
       body: Stack(
         children: [
           const _StaticFloatingBackground(),
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoCard(estudiante, widget.evaluacion['nombre'] ?? 'Rúbrica', fechaStr, notaFinal),
-                const SizedBox(height: 25),
+          Column(
+            children: [
+              if (isMobile)
                 Container(
-                  key: _keyTablaResumen,
-                  child: Row(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: const BoxDecoration(
+                    color: _primaryColor,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(25),
+                      bottomRight: Radius.circular(25),
+                    ),
+                  ),
+                  child: const Text(
+                    "DETALLE DE EVALUACIÓN",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "DESGLOSE DE RESULTADOS",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: _primaryColor.withOpacity(0.8),
-                          fontSize: 13,
-                          letterSpacing: 1.2,
+                      _buildInfoCard(estudiante, widget.evaluacion['nombre'] ?? 'Rúbrica', fechaStr, notaFinal),
+                      const SizedBox(height: 25),
+                      Container(
+                        key: _keyTablaResumen,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.analytics_outlined, color: _primaryColor, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              "DESGLOSE DE RESULTADOS",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: _primaryColor.withOpacity(0.8),
+                                fontSize: 13,
+                                letterSpacing: 1.2,
+                              ),
+                            )
+                          ],
                         ),
-                      )
+                      ),
+                      const Divider(thickness: 2, color: _primaryColor),
+                      const SizedBox(height: 10),
+                      ...criterios.asMap().entries.map((entry) {
+                        int idx = entry.key;
+                        var c = entry.value;
+                        return _buildCriterioTile(c, idx == 0 ? _keyListaDesglosada : null, idx + 1);
+                      }).toList(),
                     ],
                   ),
                 ),
-                const Divider(thickness: 2, color: _primaryColor),
-                const SizedBox(height: 10),
-                ...criterios.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  var c = entry.value;
-                  return _buildCriterioTile(c, idx == 0 ? _keyListaDesglosada : null, idx + 1);
-                }).toList(),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
