@@ -296,14 +296,18 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
               }
               try {
                 await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Correo enviado. Revisa tu bandeja de entrada.'), backgroundColor: Colors.green),
-                );
+                if (mounted) Navigator.pop(context);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Correo enviado. Revisa tu bandeja de entrada.'), backgroundColor: Colors.green),
+                  );
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Error: No se pudo enviar el correo de recuperación.'), backgroundColor: Colors.red),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Error: No se pudo enviar el correo de recuperación.'), backgroundColor: Colors.red),
+                  );
+                }
               }
             },
             child: const Text('ENVIAR', style: TextStyle(color: Colors.white)),
@@ -311,6 +315,219 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
         ],
       ),
     );
+  }
+
+  void _mostrarAvisoRegistroExitoso(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('¡Correo de Verificación Enviado!', style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mark_email_read_outlined, size: 60, color: _primaryColor),
+            const SizedBox(height: 15),
+            Text(
+              'Hemos enviado un correo de verificación a:\n\n$email\n\nPor favor, ingresa a tu casilla de correo para confirmar tu cuenta antes de iniciar sesión.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+              onPressed: () {
+                Navigator.pop(context);
+                _cambiarModo();
+              },
+              child: const Text('ENTENDIDO', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarAvisoEmailNoVerificado(String email, String password) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('Correo No Verificado', style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: 50, color: Colors.orange),
+            const SizedBox(height: 15),
+            Text(
+              'Aún no has verificado tu correo electrónico ($email).\n\nRevisa tu bandeja de entrada o spam para activar tu cuenta.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() { _isLoading = true; });
+              try {
+                UserCredential userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
+                await userCred.user?.sendEmailVerification();
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Correo de verificación reenviado exitosamente.'), backgroundColor: Colors.green),
+                  );
+                }
+              } catch (_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No se pudo reenviar el correo. Inténtalo de nuevo.'), backgroundColor: Colors.red),
+                  );
+                }
+              } finally {
+                if (mounted) setState(() { _isLoading = false; });
+              }
+            },
+            child: const Text('REENVIAR CORREO', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDialogoConfirmacionRegistro() {
+    final email = _emailController.text.trim();
+    final dniLimpio = _dniController.text.replaceAll('.', '').trim();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text(
+            'Aviso de Registro',
+            style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.mark_email_unread_outlined, size: 55, color: _primaryColor),
+              const SizedBox(height: 15),
+              Text(
+                'Se registrará la cuenta asociada a:\n\n$email\n(DNI: $dniLimpio)\n\nSe enviará un correo electrónico de verificación que deberás confirmar antes de poder ingresar a la plataforma.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CANCELAR', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _procesarRegistroBackend();
+              },
+              child: const Text('CONFIRMAR Y REGISTRAR', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _procesarRegistroBackend() async {
+    setState(() { _isLoading = true; });
+    final email = _emailController.text.trim();
+    final exito = await _ejecutarRegistroBackend();
+    if (mounted) setState(() { _isLoading = false; });
+    if (mounted && exito) {
+      _mostrarAvisoRegistroExitoso(email);
+    }
+  }
+
+  Future<bool> _ejecutarRegistroBackend() async {
+    final dniLimpio = _dniController.text.replaceAll('.', '').trim();
+    final password = _passwordController.text;
+    final email = _emailController.text.trim();
+
+    try {
+      // Validar DNI duplicado
+      final queryDni = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('dni', isEqualTo: dniLimpio)
+          .limit(1)
+          .get();
+
+      if (queryDni.docs.isNotEmpty) {
+        throw FirebaseAuthException(
+          code: 'dni-already-in-use',
+          message: 'El DNI ingresado ya se encuentra registrado por otro usuario.',
+        );
+      }
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Envío de email de verificación
+      await userCredential.user!.sendEmailVerification();
+
+      // Registro en Firestore
+      await FirebaseFirestore.instance.collection('usuarios').doc(userCredential.user!.uid).set({
+        'dni': dniLimpio,
+        'nombre': _nombreController.text.trim(),
+        'apellido': _apellidoController.text.trim(),
+        'email': email,
+        'tipo_usuario': _tipoUsuarioPorDefecto,
+        'fecha_registro': FieldValue.serverTimestamp(),
+      });
+
+      await FirebaseAuth.instance.signOut();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return false;
+      String mensajeError;
+      switch (e.code) {
+        case 'email-already-in-use':
+          mensajeError = 'Este correo electrónico ya está en uso.';
+          break;
+        case 'weak-password':
+          mensajeError = 'La contraseña debe tener al menos 6 caracteres.';
+          break;
+        case 'invalid-email':
+          mensajeError = 'El formato del correo electrónico no es válido.';
+          break;
+        case 'dni-already-in-use':
+          mensajeError = e.message ?? 'El DNI ya se encuentra registrado.';
+          break;
+        default:
+          mensajeError = 'Error al procesar el registro. Verifica tus datos.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensajeError), backgroundColor: Colors.red),
+      );
+      return false;
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error de conexión o datos inválidos.'), backgroundColor: Colors.red),
+      );
+      return false;
+    }
   }
 
   void _cambiarModo() {
@@ -334,57 +551,43 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
   void _onSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!_esLogin) {
+      _mostrarDialogoConfirmacionRegistro();
+      return;
+    }
+
     setState(() { _isLoading = true; });
 
-    await FirebaseAuth.instance.signOut();
-
-    final dniLimpio = _dniController.text.replaceAll('.', '');
+    final dniLimpio = _dniController.text.replaceAll('.', '').trim();
     final password = _passwordController.text;
 
     try {
-      if (_esLogin) {
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('usuarios')
-            .where('dni', isEqualTo: dniLimpio)
-            .limit(1)
-            .get();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('dni', isEqualTo: dniLimpio)
+          .limit(1)
+          .get();
 
-        if (querySnapshot.docs.isEmpty) {
-          throw FirebaseAuthException(code: 'user-not-found', message: 'No existe una cuenta registrada con ese DNI.');
-        }
+      if (querySnapshot.docs.isEmpty) {
+        throw FirebaseAuthException(code: 'user-not-found', message: 'No existe una cuenta registrada con ese DNI.');
+      }
 
-        final userEmail = querySnapshot.docs.first.data()['email'] as String;
-        await FirebaseAuth.instance.signInWithEmailAndPassword(email: userEmail, password: password);
-      } else {
-        // --- VALIDACIÓN DE DNI DUPLICADO ---
-        final queryDni = await FirebaseFirestore.instance
-            .collection('usuarios')
-            .where('dni', isEqualTo: dniLimpio)
-            .limit(1)
-            .get();
+      final userEmail = querySnapshot.docs.first.data()['email'] as String;
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(email: userEmail, password: password);
 
-        if (queryDni.docs.isNotEmpty) {
-          throw FirebaseAuthException(
-            code: 'dni-already-in-use',
-            message: 'El DNI ingresado ya se encuentra registrado por otro usuario.',
-          );
-        }
-
-        final email = _emailController.text;
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
-
-        await FirebaseFirestore.instance.collection('usuarios').doc(userCredential.user!.uid).set({
-          'dni': dniLimpio,
-          'nombre': _nombreController.text,
-          'apellido': _apellidoController.text,
-          'email': email,
-          'tipo_usuario': _tipoUsuarioPorDefecto,
-          'fecha_registro': FieldValue.serverTimestamp(),
-        });
+      // Verificación de Email al iniciar sesión
+      if (userCredential.user != null && !userCredential.user!.emailVerified) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        _mostrarAvisoEmailNoVerificado(userEmail, password);
+        return;
       }
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const HomeScreen()));
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
@@ -395,23 +598,11 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> with SingleTi
         case 'wrong-password':
           mensajeError = 'DNI o contraseña incorrectos.';
           break;
-        case 'email-already-in-use':
-          mensajeError = 'Este correo electrónico ya está en uso.';
-          break;
-        case 'weak-password':
-          mensajeError = 'La contraseña debe tener al menos 6 caracteres.';
-          break;
-        case 'invalid-email':
-          mensajeError = 'El formato del correo electrónico no es válido.';
-          break;
         case 'user-disabled':
           mensajeError = 'Esta cuenta ha sido deshabilitada.';
           break;
         case 'too-many-requests':
           mensajeError = 'Demasiados intentos. Inténtalo más tarde.';
-          break;
-        case 'dni-already-in-use':
-          mensajeError = e.message ?? 'El DNI ya se encuentra registrado.';
           break;
         default:
           mensajeError = 'Error al procesar la solicitud. Verifica tus datos.';

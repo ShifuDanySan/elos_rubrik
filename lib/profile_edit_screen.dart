@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'auth_helper.dart';
 import 'tutorial_helper.dart';
+import 'login_register_screen.dart';
 
 const Color _primaryColor = Color(0xFF3949AB);
 const Color _accentColor = Color(0xFF4FC3F7);
@@ -197,6 +198,156 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
     }
   }
 
+  void _mostrarDialogoConfirmacionEliminar() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: const Row(
+              children: [
+                Icon(Icons.warning_rounded, color: Colors.red, size: 28),
+                SizedBox(width: 8),
+                Text("Eliminar Cuenta", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: const Text(
+              "Esta acción es irreversible.\n\nSe eliminará permanentemente su usuario, así como todo el historial de rúbricas y evaluaciones realizadas.",
+              style: TextStyle(fontSize: 15),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text("CANCELAR", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  _eliminarCuentaCompleta();
+                },
+                child: const Text("ACEPTAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _eliminarCuentaCompleta() async {
+    setState(() => _isSaving = true);
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (mounted) setState(() => _isSaving = false);
+      return;
+    }
+
+    final uid = user.uid;
+
+    try {
+      // 1. Eliminar datos en Firestore de las colecciones vinculadas al usuario
+      final collectionsToClean = ['rubricas', 'evaluaciones', 'alumnos', 'cursos', 'historial'];
+      for (String col in collectionsToClean) {
+        try {
+          final snapshotDocente = await FirebaseFirestore.instance.collection(col).where('id_docente', isEqualTo: uid).get();
+          for (var doc in snapshotDocente.docs) {
+            await doc.reference.delete();
+          }
+          final snapshotUsuario = await FirebaseFirestore.instance.collection(col).where('id_usuario', isEqualTo: uid).get();
+          for (var doc in snapshotUsuario.docs) {
+            await doc.reference.delete();
+          }
+          final snapshotUid = await FirebaseFirestore.instance.collection(col).where('uid', isEqualTo: uid).get();
+          for (var doc in snapshotUid.docs) {
+            await doc.reference.delete();
+          }
+        } catch (_) {}
+      }
+
+      // 2. Eliminar documento principal del usuario en Firestore
+      await FirebaseFirestore.instance.collection('usuarios').doc(uid).delete();
+
+      // 3. Eliminar foto de perfil en Firebase Storage si existía
+      try {
+        await FirebaseStorage.instance.ref().child('perfiles/$uid.jpg').delete();
+      } catch (_) {}
+
+      // 4. Eliminar cuenta de Firebase Authentication
+      await user.delete();
+
+      if (mounted) {
+        setState(() => _isSaving = false);
+        _mostrarDialogoCuentaEliminada();
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _isSaving = false);
+      if (e.code == 'requires-recent-login') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Por razones de seguridad, debes haber iniciado sesión recientemente para eliminar tu cuenta. Cierra sesión e ingresa nuevamente."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error al eliminar la cuenta en Firebase."), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error inesperado al procesar la eliminación de la cuenta."), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _mostrarDialogoCuentaEliminada() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: _primaryColor, size: 28),
+                SizedBox(width: 8),
+                Text("Cuenta Eliminada", style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: const Text(
+              "Su cuenta de usuario ha sido eliminada.",
+              style: TextStyle(fontSize: 15),
+            ),
+            actions: [
+              Center(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const LoginRegisterScreen()),
+                          (route) => false,
+                    );
+                  },
+                  child: const Text("ACEPTAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -310,6 +461,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> with WidgetsBindi
                             child: _isSaving
                                 ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                 : const Text("GUARDAR CAMBIOS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                          const SizedBox(height: 15),
+                          OutlinedButton.icon(
+                            onPressed: _isSaving ? null : _mostrarDialogoConfirmacionEliminar,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red, width: 1.5),
+                              minimumSize: const Size.fromHeight(50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.delete_forever, color: Colors.red),
+                            label: const Text(
+                              "ELIMINAR MI CUENTA",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.red),
+                            ),
                           ),
                         ],
                       ),
