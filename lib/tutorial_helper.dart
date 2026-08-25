@@ -310,7 +310,7 @@ class TutorialHelper {
               key: keys['buscador_estudiante']!,
               paso: "1",
               titulo: "Buscar Estudiante",
-              mensaje: "Filtra la lista de evaluaciones históricas escribiendo el nombre o apellido del alumno.",
+              mensaje: "Filtra la lista de evaluaciones históricas escribiendo el DNI (con puntos), el nombre o el apellido del alumno.",
               esCirculo: false,
             ),
           if (keys.containsKey('tipo_rubrica'))
@@ -459,7 +459,7 @@ class TutorialHelper {
               key: keys['primer_nivel']!,
               paso: "1",
               titulo: "Asignación de Puntaje",
-              mensaje: "Ingresa el puntaje del criterio manualmente o utiliza el slider para ajustarlo.",
+              mensaje: "Ingresa el puntaje del criterio manualmente o utiliza el slider para ajustarlo en un rango continuo de 0.00 a 10. Evaluar de esta manera es mucho más sencillo y preciso, ya que permite reflejar el nivel exacto alcanzado sin encasillar el desempeño en niveles fijos.",
               esCirculo: false,
             ),
           if (keys.containsKey('nota_final'))
