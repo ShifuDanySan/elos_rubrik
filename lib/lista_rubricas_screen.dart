@@ -501,6 +501,7 @@ class _ListaRubricasScreenState extends State<ListaRubricasScreen> {
                 if (isMobile) ...[
                   const Text(
                     "Mis Rúbricas",
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,
